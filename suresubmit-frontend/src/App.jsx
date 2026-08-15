@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Container, Button, Box, ThemeProvider, createTheme, CssBaseline, Paper, Divider } from '@mui/material';
-// 👇 CHANGED: Using Named Imports for Icons so Vite doesn't crash
 import { Create, FormatListBulleted, SettingsInputComponent } from '@mui/icons-material';
 import FormBuilder from './pages/FormBuilder'; 
+import Dashboard from './pages/Dashboard'; 
+import LiveForm from './pages/LiveForm'; // <--- NEW
 
 const bespokeTheme = createTheme({
   palette: {
@@ -38,12 +39,11 @@ function HomePage() {
           A structured engine for data collection, featuring advanced cross-field validation and secure submission handling.
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          {/* 👇 CHANGED: Using <Create /> instead of <CreateIcon /> */}
           <Button variant="contained" color="primary" size="large" startIcon={<Create />} onClick={() => navigate('/build')} sx={{ px: 4, py: 1.5 }}>
             New Form
           </Button>
-          <Button variant="text" color="primary" size="large" startIcon={<FormatListBulleted />} sx={{ px: 3, py: 1.5 }}>
-            View Submissions
+          <Button variant="text" color="primary" size="large" startIcon={<FormatListBulleted />} onClick={() => navigate('/dashboard')} sx={{ px: 3, py: 1.5 }}>
+            View My Forms
           </Button>
         </Box>
       </Box>
@@ -76,7 +76,6 @@ function App() {
       <Router>
         <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: '1px solid #e2e8f0' }}>
           <Toolbar sx={{ maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
-            {/* 👇 CHANGED */}
             <SettingsInputComponent sx={{ mr: 2, color: '#0f172a' }} />
             <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: '-0.5px' }}>
               SureSubmit
@@ -90,6 +89,8 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/build" element={<FormBuilder />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/form/:id" element={<LiveForm />} /> {/* <--- NEW */}
           </Routes>
         </Container>
       </Router>

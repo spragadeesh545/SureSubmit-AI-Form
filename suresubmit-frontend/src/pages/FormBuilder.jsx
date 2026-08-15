@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Box, Button, Typography, TextField, MenuItem, Paper, IconButton, LinearProgress } from '@mui/material';
-import { DeleteOutline, Add, Save, AutoAwesome } from '@mui/icons-material';
+import { DeleteOutline, Add, AutoAwesome, Palette, Visibility, Undo, Redo, ContentCopy, PersonAdd } from '@mui/icons-material';
 
 export default function FormBuilder() {
   const [formTitle, setFormTitle] = useState('Untitled Form');
   const [fields, setFields] = useState([]);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [shareableLink, setShareableLink] = useState(null);
 
-  // AI Generation Handler using Groq
+  // --- AI Generation Handler using Groq ---
   const handleAIGeneration = async () => {
     if (!aiPrompt) return;
     setIsGenerating(true);
@@ -59,7 +61,10 @@ export default function FormBuilder() {
         throw new Error(data.error?.message || `API Error: ${response.status}`);
       }
 
-      const rawText = data.choices[0].message.content.trim();
+      // Failsafe to clean potential markdown backticks from AI response
+      let rawText = data.choices[0].message.content.trim();
+      rawText = rawText.replace(/```json/g, "").replace(/```/g, "");
+      
       const generatedData = JSON.parse(rawText);
       
       setFormTitle(generatedData.formTitle || 'Untitled Form');
@@ -81,13 +86,21 @@ export default function FormBuilder() {
     }
   };
 
-  // Database Save Handler 
-  const handleSaveForm = async () => {
+  // --- Database Save & Link Generation Handler ---
+  const handlePublish = async () => {
+    if (fields.length === 0) {
+      alert("Please add at least one field before publishing!");
+      return;
+    }
+
+    setIsPublishing(true);
+
     try {
-      // Structuring exactly to match the Form.java entity
+      // Structuring exactly to match your Form.java MySQL entity
       const payload = {
         title: formTitle,
-        fields: fields.map(f => f.label) 
+        fields: fields.map(f => f.label),
+        status: "ACTIVE"
       };
 
       const response = await fetch('http://localhost:8080/api/forms', {
@@ -103,10 +116,20 @@ export default function FormBuilder() {
         throw new Error(errorText || `Status: ${response.status}`);
       }
 
-      alert('Success! Form saved to MySQL database via Spring Boot.');
+      // 1. Get the newly saved form from Spring Boot (which contains the MySQL ID)
+      const savedForm = await response.json();
+      
+      // 2. Generate the live shareable link using that ID
+      const publicLink = `http://localhost:5173/form/${savedForm.id}`;
+      
+      // 3. Display the link to the user
+      setShareableLink(publicLink);
+
     } catch (error) {
       console.error("Save Error:", error);
       alert("Error saving form to backend: " + error.message);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -122,74 +145,178 @@ export default function FormBuilder() {
     setFields(fields.filter(field => field.id !== id));
   };
 
+  // Copy Link to Clipboard Tool
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareableLink);
+    alert("Link copied! It is now stored in your Dashboard history.");
+  };
+
   return (
-    <Box sx={{ maxWidth: '800px', margin: '0 auto', mt: 4, px: 2 }}>
+    <Box sx={{ backgroundColor: '#f8fafc', minHeight: '100vh', pb: 10 }}>
       
-      <Paper elevation={0} sx={{ p: 4, mb: 4, background: 'linear-gradient(to right, #f8fafc, #f1f5f9)', border: '1px solid #cbd5e1', borderRadius: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AutoAwesome sx={{ color: '#6366f1' }} />
-          Generate with AI (Powered by Groq & Llama 3)
-        </Typography>
-        <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
-          Describe the form you want to build, and our AI will instantly generate the fields and logic.
-        </Typography>
-        
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <TextField
-            fullWidth
-            placeholder="e.g., Create a student registration form with name, email, and age..."
-            variant="outlined"
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            disabled={isGenerating}
-            sx={{ backgroundColor: '#ffffff' }}
-          />
+      {/* --- 1. GOOGLE FORMS STYLE TOP TOOLBAR --- */}
+      <Paper elevation={0} sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        p: '12px 24px', 
+        mb: 4, 
+        borderBottom: '1px solid #e2e8f0', 
+        borderRadius: 0,
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        backgroundColor: '#ffffff'
+      }}>
+        {/* Left Side: Document Name (Editable) */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#6366f1', letterSpacing: '-0.5px' }}>
+            SureSubmit
+          </Typography>
+        </Box>
+
+        {/* Right Side: Tools & Publish Button */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton title="Customize Theme"><Palette sx={{ color: '#64748b' }} /></IconButton>
+          <IconButton title="Preview"><Visibility sx={{ color: '#64748b' }} /></IconButton>
+          <IconButton title="Undo"><Undo sx={{ color: '#64748b' }} /></IconButton>
+          <IconButton title="Redo"><Redo sx={{ color: '#64748b' }} /></IconButton>
+          <IconButton title="Manage Access (Who can view)"><PersonAdd sx={{ color: '#64748b' }} /></IconButton>
+
           <Button 
             variant="contained" 
-            onClick={handleAIGeneration}
-            disabled={isGenerating || !aiPrompt}
-            sx={{ backgroundColor: '#6366f1', color: '#ffffff', px: 4, '&:hover': { backgroundColor: '#4f46e5' } }}
+            onClick={handlePublish}
+            disabled={isPublishing}
+            sx={{ 
+              backgroundColor: '#6366f1', 
+              color: '#ffffff', 
+              fontWeight: 700, 
+              ml: 2, 
+              px: 3,
+              borderRadius: 2,
+              textTransform: 'none',
+              boxShadow: '0 4px 6px rgba(99, 102, 241, 0.2)',
+              '&:hover': { backgroundColor: '#4f46e5', boxShadow: '0 6px 8px rgba(99, 102, 241, 0.3)' } 
+            }}
           >
-            {isGenerating ? 'Generating...' : 'Generate'}
+            {isPublishing ? 'Publishing...' : 'Publish'}
           </Button>
         </Box>
-        {isGenerating && <LinearProgress sx={{ mt: 3, borderRadius: 2 }} />}
       </Paper>
 
-      <Paper elevation={0} sx={{ p: 4, mb: 4, border: '1px solid #e2e8f0', borderTop: '6px solid #0f172a' }}>
-        <TextField
-          fullWidth
-          variant="standard"
-          value={formTitle}
-          onChange={(e) => setFormTitle(e.target.value)}
-          placeholder="Form Title"
-          InputProps={{ disableUnderline: true, sx: { fontSize: '2rem', fontWeight: 800, color: '#0f172a' } }}
-        />
-      </Paper>
+      {/* --- 2. SUCCESS DROPDOWN (Link Generation) --- */}
+      {shareableLink && (
+        <Box sx={{ maxWidth: '800px', margin: '0 auto', px: 2 }}>
+          <Paper elevation={0} sx={{ 
+            p: 3, 
+            mb: 4, 
+            backgroundColor: '#f0fdf4', 
+            border: '1px solid #bbf7d0', 
+            borderRadius: 3,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <Box>
+              <Typography variant="h6" sx={{ color: '#166534', fontWeight: 700 }}>🎉 Form Published & Saved to History!</Typography>
+              <Typography variant="body2" sx={{ color: '#15803d' }}>Your form is live. Share this link to start collecting data.</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField 
+                size="small"
+                value={shareableLink}
+                InputProps={{ readOnly: true }}
+                sx={{ backgroundColor: '#ffffff', width: '300px', borderRadius: 1 }}
+              />
+              <Button 
+                variant="contained" 
+                startIcon={<ContentCopy />} 
+                onClick={handleCopyLink}
+                sx={{ backgroundColor: '#22c55e', '&:hover': { backgroundColor: '#16a34a' }, textTransform: 'none', fontWeight: 600 }}
+              >
+                Copy Link
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      )}
 
-      {fields.map((field, index) => (
-        <Paper key={field.id} elevation={0} sx={{ p: 3, mb: 3, border: '1px solid #e2e8f0', display: 'flex', gap: 3, alignItems: 'flex-start' }}>
-          <Typography variant="h6" sx={{ color: '#94a3b8', fontWeight: 700, pt: 1 }}>{index + 1}.</Typography>
-          <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField fullWidth label="Field Label" variant="outlined" value={field.label} onChange={(e) => updateField(field.id, 'label', e.target.value)} />
-            <TextField select label="Input Type" value={field.type} onChange={(e) => updateField(field.id, 'type', e.target.value)} sx={{ width: '200px' }}>
-              <MenuItem value="text">Short Text</MenuItem>
-              <MenuItem value="date">Date</MenuItem>
-              <MenuItem value="number">Number</MenuItem>
-              <MenuItem value="dropdown">Dropdown</MenuItem>
-            </TextField>
+      {/* --- MAIN BUILDER CANVAS --- */}
+      <Box sx={{ maxWidth: '800px', margin: '0 auto', px: 2 }}>
+        
+        {/* AI GENERATION CARD */}
+        <Paper elevation={0} sx={{ p: 4, mb: 4, background: 'linear-gradient(to right, #f8fafc, #f1f5f9)', border: '1px solid #cbd5e1', borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AutoAwesome sx={{ color: '#6366f1' }} />
+            Generate with AI (Powered by Groq & Llama 3)
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
+            Describe the form you want to build, and our AI will instantly generate the fields and logic.
+          </Typography>
+          
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              fullWidth
+              placeholder="e.g., Create a student registration form with name, email, and mark..."
+              variant="outlined"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              disabled={isGenerating}
+              sx={{ backgroundColor: '#ffffff' }}
+            />
+            <Button 
+              variant="contained" 
+              onClick={handleAIGeneration}
+              disabled={isGenerating || !aiPrompt}
+              sx={{ backgroundColor: '#6366f1', color: '#ffffff', px: 4, '&:hover': { backgroundColor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+            >
+              {isGenerating ? 'Generating...' : 'Generate'}
+            </Button>
           </Box>
-          <IconButton color="error" onClick={() => removeField(field.id)} sx={{ mt: 1 }}><DeleteOutline /></IconButton>
+          {isGenerating && <LinearProgress sx={{ mt: 3, borderRadius: 2 }} />}
         </Paper>
-      ))}
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, pb: 10 }}>
-        <Button variant="outlined" startIcon={<Add />} onClick={addField} sx={{ border: '2px solid #0f172a', color: '#0f172a', fontWeight: 600 }}>
-          Add Manual Field
-        </Button>
-        <Button variant="contained" onClick={handleSaveForm} startIcon={<Save />} sx={{ backgroundColor: '#0f172a', px: 4 }}>
-          Save Form Engine
-        </Button>
+        {/* FORM TITLE */}
+        <Paper elevation={0} sx={{ p: 4, mb: 4, border: '1px solid #e2e8f0', borderTop: '8px solid #6366f1', borderRadius: 2 }}>
+          <TextField
+            fullWidth
+            variant="standard"
+            value={formTitle}
+            onChange={(e) => setFormTitle(e.target.value)}
+            placeholder="Form Title"
+            InputProps={{ disableUnderline: true, sx: { fontSize: '2rem', fontWeight: 800, color: '#0f172a' } }}
+          />
+        </Paper>
+
+        {/* FIELDS MAPPING */}
+        {fields.map((field, index) => (
+          <Paper key={field.id} elevation={0} sx={{ p: 3, mb: 3, border: '1px solid #e2e8f0', display: 'flex', gap: 3, alignItems: 'flex-start', borderRadius: 2 }}>
+            <Typography variant="h6" sx={{ color: '#94a3b8', fontWeight: 700, pt: 1 }}>{index + 1}.</Typography>
+            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField fullWidth label="Field Label" variant="outlined" value={field.label} onChange={(e) => updateField(field.id, 'label', e.target.value)} />
+              <TextField select label="Input Type" value={field.type} onChange={(e) => updateField(field.id, 'type', e.target.value)} sx={{ width: '200px' }}>
+                <MenuItem value="text">Short Text</MenuItem>
+                <MenuItem value="date">Date</MenuItem>
+                <MenuItem value="number">Number</MenuItem>
+                <MenuItem value="dropdown">Dropdown</MenuItem>
+              </TextField>
+            </Box>
+            <IconButton color="error" onClick={() => removeField(field.id)} sx={{ mt: 1 }}><DeleteOutline /></IconButton>
+          </Paper>
+        ))}
+
+        {/* ADD MANUAL FIELD BUTTON */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <Button 
+            variant="outlined" 
+            startIcon={<Add />} 
+            onClick={addField} 
+            sx={{ border: '2px dashed #cbd5e1', color: '#64748b', fontWeight: 600, width: '100%', py: 1.5, '&:hover': { backgroundColor: '#f1f5f9', border: '2px dashed #94a3b8' } }}
+          >
+            Add Manual Field
+          </Button>
+        </Box>
+
       </Box>
     </Box>
   );
