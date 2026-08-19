@@ -1,5 +1,6 @@
 package com.suresubmit.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -12,15 +13,23 @@ public class FormSubmission {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "form_id", nullable = false)
+    @JsonIgnore
     private Form form;
 
-    @Column(name = "payload_json", nullable = false, columnDefinition = "JSON")
+    @Column(name = "payload_json", nullable = false, columnDefinition = "TEXT")
     private String payloadJson;
 
     @Column(name = "submitted_at", insertable = false, updatable = false)
     private LocalDateTime submittedAt;
 
     public FormSubmission() {}
+
+    @PrePersist
+    public void onCreate() {
+        if (submittedAt == null) {
+            submittedAt = LocalDateTime.now();
+        }
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
