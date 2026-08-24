@@ -18,9 +18,9 @@ const OPERATORS = {
   not_equals: (a, b) => String(a).trim() !== String(b).trim(),
   date_after: (a, b) => new Date(a) > new Date(b),
   date_before: (a, b) => new Date(a) < new Date(b),
-  count_equals: (a, b) => (Array.isArray(a) ? a.length : Number(a)) === Number(b),
-  count_gte: (a, b) => (Array.isArray(a) ? a.length : Number(a)) >= Number(b),
-  count_lte: (a, b) => (Array.isArray(a) ? a.length : Number(a)) <= Number(b),
+  count_equals: (a, b) => Number(a) === (Array.isArray(b) ? b.length : Number(b)),
+  count_gte: (a, b) => Number(a) >= (Array.isArray(b) ? b.length : Number(b)),
+  count_lte: (a, b) => Number(a) <= (Array.isArray(b) ? b.length : Number(b)),
   is_before_year: (a, b) => new Date(a).getFullYear() < Number(b),
 };
 
@@ -65,7 +65,13 @@ function validateCrossFieldRules(values, rules) {
     const isValid = evaluator(primaryValue, compareValue);
 
     if (!isValid) {
-      errors[primaryLabel] = rule.errorMessage;
+      if (rule.operator.startsWith('count_') && Array.isArray(compareValue)) {
+        const expectedCount = Number(primaryValue);
+        const actualCount = compareValue.length;
+        errors[primaryLabel] = `${primaryLabel} requires ${expectedCount} member${expectedCount === 1 ? '' : 's'}, but ${secondaryLabel} contains ${actualCount}.`;
+      } else {
+        errors[primaryLabel] = rule.errorMessage;
+      }
     }
   }
 
@@ -389,7 +395,12 @@ const LiveForm = () => {
     );
   }
 
-  const activeRules = (form.crossFieldRules || []).filter(r => r.isApproved);
+  const fieldLabels = new Set((form.fields || []).map(field => field.label));
+  const activeRules = (form.crossFieldRules || []).filter(r =>
+    r.isApproved &&
+    fieldLabels.has(r.primaryField?.label) &&
+    (!r.secondaryField || fieldLabels.has(r.secondaryField.label))
+  );
   const hasValidationErrors = Object.keys(errors).length > 0;
 
   return (

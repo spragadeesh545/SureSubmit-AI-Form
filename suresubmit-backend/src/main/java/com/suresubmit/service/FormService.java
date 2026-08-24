@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -70,6 +69,11 @@ public class FormService {
                     if (secondary != null) {
                         rule.setSecondaryField(secondary);
                     }
+                }
+
+                if (primary == null || (rd.getSecondaryFieldLabel() != null && rule.getSecondaryField() == null)
+                    || (rule.getSecondaryField() != null && primary.getId().equals(rule.getSecondaryField().getId()))) {
+                    throw new IllegalArgumentException("Validation rule references invalid form fields");
                 }
 
                 savedForm.getCrossFieldRules().add(rule);

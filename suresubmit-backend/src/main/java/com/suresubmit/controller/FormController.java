@@ -28,6 +28,8 @@ public class FormController {
         try {
             Form savedForm = formService.createFormWithDetails(request);
             return new ResponseEntity<>(savedForm, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

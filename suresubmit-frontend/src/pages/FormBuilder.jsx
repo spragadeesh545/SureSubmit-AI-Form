@@ -468,6 +468,150 @@ export default function FormBuilder() {
 
   const getLiveLink = () => publishedFormId ? `http://localhost:5173/form/${publishedFormId}` : '';
 
+  const callGroq = async (apiKey, messages) => {
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-120b",
+        messages,
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error?.message || `API Error: ${r.status}`);
+    let raw = d.choices[0].message.content.trim();
+    raw = raw.replace(/```json/g, "").replace(/```/g, "");
+    return JSON.parse(raw);
+  };
+
+  const TYPE_FAMILY = {
+    text: 'string', textarea: 'string', email: 'string', telephone: 'string',
+    url: 'string', password: 'string', dropdown: 'choice', radio: 'choice',
+    number: 'number', date: 'date', checkbox: 'multi', file: 'file',
+  };
+  const isNum = (v) => v !== null && v !== undefined && v !== '' && !isNaN(parseFloat(v));
+  const isISODate = (v) => typeof v === 'string' && !isNaN(Date.parse(v));
+
+  const validateRule = (rule, fieldLabels, fieldTypeMap) => {
+    if (!rule.primaryFieldLabel || !fieldLabels.includes(rule.primaryFieldLabel)) return false;
+    if (!rule.operator || !rule.errorMessage) return false;
+    if (rule.secondaryFieldLabel && !fieldLabels.includes(rule.secondaryFieldLabel)) return false;
+    if (rule.primaryFieldLabel === rule.secondaryFieldLabel) return false;
+
+    const primaryType = fieldTypeMap[rule.primaryFieldLabel];
+    const secondaryType = rule.secondaryFieldLabel ? fieldTypeMap[rule.secondaryFieldLabel] : null;
+    const pFamily = TYPE_FAMILY[primaryType];
+    const sFamily = secondaryType ? TYPE_FAMILY[secondaryType] : null;
+    const sv = rule.staticValue;
+
+    switch (rule.operator) {
+      case 'greater_than':
+      case 'less_than':
+      case 'gte':
+      case 'lte':
+        if (secondaryType) return pFamily === 'number' && sFamily === 'number';
+        return pFamily === 'number' && isNum(sv);
+
+      case 'date_after':
+      case 'date_before':
+        if (secondaryType) return pFamily === 'date' && sFamily === 'date';
+        return pFamily === 'date' && isISODate(sv);
+
+      case 'is_before_year':
+        return !secondaryType && pFamily === 'date' && /^\d{4}$/.test(String(sv || '').trim());
+
+      case 'equals':
+      case 'not_equals': {
+        if (pFamily === 'file' || pFamily === 'multi') return false;
+        if (secondaryType) {
+          if (sFamily === 'file' || sFamily === 'multi') return false;
+          return pFamily === sFamily;
+        }
+        return Boolean(sv);
+      }
+
+      case 'count_equals':
+      case 'count_gte':
+      case 'count_lte':
+        return pFamily === 'number' && sFamily === 'multi';
+
+      default:
+        return false;
+    }
+  };
+
+  const repairRule = (rule, fieldTypeMap) => {
+    const r = { ...rule };
+    const pType = fieldTypeMap[r.primaryFieldLabel];
+    const sType = r.secondaryFieldLabel ? fieldTypeMap[r.secondaryFieldLabel] : null;
+    if (['count_equals', 'count_gte', 'count_lte'].includes(r.operator)
+        && TYPE_FAMILY[pType] === 'multi' && sType === 'number') {
+      [r.primaryFieldLabel, r.secondaryFieldLabel] = [r.secondaryFieldLabel, r.primaryFieldLabel];
+    }
+    return r;
+  };
+
+  const normalizeLabel = (label, fieldLabels) => {
+    if (fieldLabels.includes(label)) return label;
+    const norm = (s) => s.toLowerCase().trim();
+    const target = norm(label);
+    return fieldLabels.find(f => norm(f) === target) || label;
+  };
+
+  const dedupeRules = (rules) => {
+    const seen = new Set();
+    return rules.filter(r => {
+      const key = `${r.primaryFieldLabel}__${r.operator}__${r.secondaryFieldLabel || ''}__${r.staticValue || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const explicitEqualityRules = (request, fieldLabels, fieldTypeMap, rules) => {
+    const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const requestText = request.toLowerCase();
+    const equalityRules = [];
+
+    fieldLabels.forEach((primaryLabel) => {
+      fieldLabels.forEach((secondaryLabel) => {
+        if (primaryLabel === secondaryLabel) return;
+
+        const equalityPattern = new RegExp(
+          `${escapeRegex(primaryLabel.toLowerCase())}[\\s\\S]{0,100}(?:must\\s+(?:be\\s+)?equal(?:\\s+to)?|equals?|same\\s+as)[\\s\\S]{0,100}${escapeRegex(secondaryLabel.toLowerCase())}`
+        );
+        if (!equalityPattern.test(requestText)) return;
+
+        const primaryFamily = TYPE_FAMILY[fieldTypeMap[primaryLabel]];
+        const secondaryFamily = TYPE_FAMILY[fieldTypeMap[secondaryLabel]];
+        if (!primaryFamily || primaryFamily !== secondaryFamily || ['file', 'multi'].includes(primaryFamily)) return;
+
+        const existingRule = rules.find(rule =>
+          rule.primaryFieldLabel === primaryLabel && rule.secondaryFieldLabel === secondaryLabel
+        );
+        equalityRules.push({
+          ...(existingRule || {}),
+          primaryFieldLabel: primaryLabel,
+          operator: 'equals',
+          secondaryFieldLabel: secondaryLabel,
+          staticValue: null,
+          errorMessage: `"${primaryLabel}" must equal "${secondaryLabel}"`,
+          description: `Ensures ${primaryLabel} matches ${secondaryLabel}`,
+        });
+      });
+    });
+
+    const explicitKeys = new Set(equalityRules.map(rule =>
+      `${rule.primaryFieldLabel}__${rule.secondaryFieldLabel}`
+    ));
+    return [
+      ...rules.filter(rule => !explicitKeys.has(`${rule.primaryFieldLabel}__${rule.secondaryFieldLabel}`)),
+      ...equalityRules,
+    ];
+  };
+
   const handleAIGeneration = async () => {
     if (!aiPrompt) return;
     setIsGenerating(true);
@@ -476,108 +620,111 @@ export default function FormBuilder() {
       const apiKey = import.meta.env.VITE_GROQ_API_KEY;
       if (!apiKey) throw new Error("VITE_GROQ_API_KEY is missing from .env!");
 
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert form engineer and data validation architect. You MUST return ONLY valid JSON. No markdown, no code blocks, no explanations.
+      const FIELD_SYSTEM = `You are an expert form engineer. Return ONLY valid JSON. No markdown, no code blocks, no explanations.
 
-Your job has TWO parts:
-1. DESIGN FIELDS: Generate the form fields the user requested, choosing the most appropriate inputType for each.
-2. DESIGN VALIDATION RULES: Analyze semantic relationships between fields and create ONLY rules that are logically valid.
+Your job: design form fields. Choose the BEST inputType. Infer types intelligently from field names even when the user gives a short list.
 
-VALID inputType values: "text", "textarea", "number", "date", "email", "telephone", "url", "password", "dropdown", "radio", "checkbox", "file"
+VALID inputType: "text", "textarea", "number", "date", "email", "telephone", "url", "password", "dropdown", "radio", "checkbox", "file"
 
-For dropdown/radio/checkbox fields, ALSO include an "options" array (e.g., "options": ["Option 1", "Option 2"]).
+SMART TYPE INFERENCE (follow these mappings when the user gives field names without specifying types):
+- "team member(s)", "member(s)", "participant(s)", "skill(s)", "feature(s)", "interest(s)", "preference(s)" → checkbox (with generated options like "Member 1", "Member 2" etc., or infer from context)
+- "mark(s)", "score(s)", "points", "grade(number)", "age", "quantity", "amount", "total", "obtained", "capacity", "count", "size", "width", "height", "weight", "distance", "duration", "rating(1-10)" → number
+- "date of birth", "dob", "birth date", "admission date", "start date", "end date", "deadline", "joining date" → date
+- "email", "e-mail" → email
+- "phone", "telephone", "mobile", "contact number" → telephone
+- "website", "url", "link" → url
+- "password", "confirm password", "new password" → password
+- "address", "description", "bio", "notes", "comments", "feedback", "message" → textarea
+- "name", "title", "subject", "city", "country" → text
+- "photo", "image", "document", "file", "attachment", "resume", "cv" → file
+- "gender", "status", "priority", "category", "type" → dropdown (with sensible options)
+- "agree", "terms", "consent" → checkbox (single option)
+- When unsure whether a field is numeric or text, prefer "number" if the name suggests a measurable quantity.
 
-CRITICAL RULES FOR VALIDATION:
-- NEVER compare a field to itself. primaryFieldLabel MUST be different from secondaryFieldLabel.
-- NEVER mix incompatible types (number field vs date field is FORBIDDEN).
-- Only create rules between fields with a REAL logical relationship.
-- Date ordering: "End Date" date_after "Start Date", "Date of Birth" date_before "Admission Date", etc.
-- Number bounds: "Obtained Marks" lte "Total Marks", "Age" gte "0" (staticValue), quantities must be non-negative, etc.
-- Password parity: "Password" equals "Confirm Password".
-- Selections count: If user requests something like "Team Size" (number) and "Team Member Name" (checkbox or repeated field) or "Number of Members" (number) paired with a multi-select, use count_equals: Team Size count_equals the number of selections. Use operators count_equals, count_gte, count_lte for counting selections.
-- Use "staticValue" when comparing against a fixed constant.
-- Use "secondaryFieldLabel" when comparing two fields against each other.
-- Each rule MUST have a clear, human-readable errorMessage and description.
-- If no valid cross-field relationships exist, return an EMPTY array for crossFieldRules.`
-            },
-            {
-              role: "user",
-              content: `Design a complete form structure for: "${aiPrompt}"
-
-STEP 1: Analyze the user's request. Identify all fields needed.
-STEP 2: For each field, pick the BEST inputType: "text", "textarea", "number", "date", "email", "telephone", "url", "password", "dropdown", "radio", "checkbox", "file"
-  - Multi-line text → "textarea"
-  - Phone → "telephone"
-  - Website → "url"
-  - Single choice from list → "radio" or "dropdown"
-  - Multiple selections → "checkbox"
-  - Upload a document/image → "file"
-STEP 3: For dropdown/radio/checkbox fields, include an "options" array.
-STEP 4: Analyze relationships between fields and generate ONLY valid rules.
-  - Date fields that need ordering (start < end, DOB < admission)
-  - Number fields with logical bounds (obtained <= total, marks >= 0)
-  - Password/confirmation pairs (must be equal)
-  - Selection count relationships (e.g., "Team Size" number must equal count of selected team members)
-STEP 5: Return an EMPTY crossFieldRules array if no real relationships exist.
+For dropdown/radio/checkbox fields, generate an "options" array with realistic options matching the context.
 
 Return EXACTLY this JSON:
 {
   "formTitle": "Professional title",
   "fields": [
     { "label": "Field Label", "inputType": "text", "isRequired": true, "options": ["Option 1", "Option 2"] }
-  ],
+  ]
+}`;
+
+      const RULE_SYSTEM = `You are a data validation architect. Return ONLY valid JSON. No markdown, no code blocks, no explanations.
+
+You will receive a list of fields with their labels and inputTypes.
+Your job: generate cross-field validation rules that are type-compatible and logically meaningful.
+
+BE PROACTIVE — Do NOT wait for the user to ask for rules. Infer rules from the field types and names:
+- If a number field and a checkbox field exist → ALWAYS suggest count_equals (team size ↔ team members pattern)
+- If two number fields with a logical pair exist (total/obtained, min/max) → suggest lte/gte
+- If two date fields exist (start/end) → suggest date_after/date_before
+- If a password + confirm password exist → suggest equals
+- If a number field alone exists → suggest gte "0" (or a reasonable lower bound) using staticValue
+- If a date field that implies a deadline or birth date exists → suggest is_before_year with current year or reasonable year
+
+OPERATOR ↔ FIELD-TYPE COMPATIBILITY MATRIX:
+| Operator(s)                    | Allowed combination                                |
+|--------------------------------|----------------------------------------------------|
+| greater_than, less_than, gte, lte | number field ↔ number field                      |
+| greater_than, less_than, gte, lte | number field ↔ numeric staticValue ("0","100")   |
+| date_after, date_before        | date field ↔ date field                            |
+| date_after, date_before        | date field ↔ ISO date staticValue ("YYYY-MM-DD")  |
+| is_before_year                 | date field ↔ year staticValue ("YYYY")             |
+| equals, not_equals             | SAME type only: password↔password, email↔email, text↔text, dropdown↔dropdown, radio↔radio |
+| count_equals, count_gte, count_lte | number field (PRIMARY) ↔ checkbox field (SECONDARY) |
+
+DERIVATION PROCEDURE:
+1. List each field with its inputType.
+2. Find ALL type-compatible pairs using the matrix.
+3. For number+checkbox pairs → ALWAYS suggest count_equals (or count_gte/lte).
+4. For number+number pairs with logical names (total/obtained, min/max) → suggest bounds.
+5. For number-only fields → suggest gte "0" with staticValue.
+6. For date+date pairs → suggest ordering.
+7. For password pairs → suggest equals.
+
+CRITICAL RULES:
+- NEVER compare a field to itself.
+- NEVER mix incompatible types.
+- Number (primary) + checkbox (secondary) for count rules.
+- Each rule MUST have errorMessage and description.
+- If absolutely no valid relationships exist, return {"crossFieldRules": []}.
+
+Return EXACTLY this JSON:
+{
   "crossFieldRules": [
     {
-      "primaryFieldLabel": "EXACT label from fields array",
+      "primaryFieldLabel": "EXACT label from the field list",
       "operator": "valid_operator",
-      "secondaryFieldLabel": "EXACT label from fields array OR null",
+      "secondaryFieldLabel": "EXACT label from the field list OR null",
       "staticValue": "value OR null",
-      "errorMessage": "Clear error message shown to user",
+      "errorMessage": "Clear error message",
       "description": "Why this rule exists"
     }
   ]
 }
 
-VALID inputType: "text", "textarea", "number", "date", "email", "telephone", "url", "password", "dropdown", "radio", "checkbox", "file"
-VALID operator: "greater_than", "less_than", "gte", "lte", "equals", "not_equals", "date_after", "date_before", "count_equals", "count_gte", "count_lte"
+VALID operator: "greater_than", "less_than", "gte", "lte", "equals", "not_equals", "date_after", "date_before", "count_equals", "count_gte", "count_lte", "is_before_year"
 
-RULE GENERATION EXAMPLES:
-- "Start Date" (date) + "End Date" (date) → End Date date_after Start Date
+RULE EXAMPLES:
+- "Team Size" (number, PRIMARY) + "Team Members" (checkbox, SECONDARY) → Team Size count_equals Team Members
 - "Total Marks" (number) + "Obtained Marks" (number) → Obtained Marks lte Total Marks
-- "Password" + "Confirm Password" (password) → Password equals Confirm Password
-- "Age" (number) → Age gte "0" (staticValue)
-- "Team Size" (number) + "Team Members" (checkbox with options) → Team Size count_equals the count of checked options (secondaryFieldLabel = "Team Members", staticValue = null)
-- "Email" alone → NO rule
-- "Name" + "Phone" only → EMPTY crossFieldRules array
+- "Mark" (number, alone) → Mark gte "0" (staticValue)
+- "Start Date" (date) + "End Date" (date) → End Date date_after Start Date
+- "Password" (password) + "Confirm Password" (password) → Password equals Confirm Password
+- "Date of Birth" (date) → Date of Birth is_before_year "2010" (staticValue)
+- "Age" (number, alone) → Age gte "0" (staticValue)
 
-CRITICAL: primaryFieldLabel and secondaryFieldLabel MUST be EXACT copies of field labels from the fields array. Do NOT modify, capitalize differently, or invent labels. NEVER create a rule where primaryFieldLabel equals secondaryFieldLabel.`
-            }
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.1
-        })
-      });
+CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differently, or invent labels.`;
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message || `API Error: ${response.status}`);
+      // ── PASS 1: Generate fields only ──
+      const fieldsResult = await callGroq(apiKey, [
+        { role: "system", content: FIELD_SYSTEM },
+        { role: "user", content: `Design fields for: "${aiPrompt}"\n\nSTEP 1: Analyze the request. Identify all fields.\nSTEP 2: For each field, pick the BEST inputType.\nSTEP 3: For dropdown/radio/checkbox, include options.\n\nReturn { "formTitle": "...", "fields": [...] }` },
+      ]);
 
-      let rawText = data.choices[0].message.content.trim();
-      rawText = rawText.replace(/```json/g, "").replace(/```/g, "");
-      const generated = JSON.parse(rawText);
-
-      setFormTitle(generated.formTitle || 'Untitled Form');
-
-      const newFields = (generated.fields || []).map((f, i) => ({
+      const newFields = (fieldsResult.fields || []).map((f, i) => ({
         id: Date.now() + i,
         label: f.label || `Field ${i + 1}`,
         inputType: f.inputType || 'text',
@@ -589,55 +736,57 @@ CRITICAL: primaryFieldLabel and secondaryFieldLabel MUST be EXACT copies of fiel
       const fieldTypeMap = {};
       newFields.forEach(f => { fieldTypeMap[f.label] = f.inputType; });
 
-      const validateRule = (rule, fieldLabels, fieldTypeMap) => {
-        if (!rule.primaryFieldLabel || !fieldLabels.includes(rule.primaryFieldLabel)) return false;
-        if (rule.secondaryFieldLabel && !fieldLabels.includes(rule.secondaryFieldLabel)) return false;
-        if (rule.primaryFieldLabel === rule.secondaryFieldLabel) return false;
-        if (!rule.operator || !rule.errorMessage) return false;
+      // ── PASS 2: Generate rules from real fields ──
+      const fieldsJson = newFields.map(f => ({
+        label: f.label,
+        inputType: f.inputType,
+        options: f.options || [],
+      }));
 
-        const primaryType = fieldTypeMap[rule.primaryFieldLabel];
-        const secondaryType = rule.secondaryFieldLabel ? fieldTypeMap[rule.secondaryFieldLabel] : null;
+      const rulesResult = await callGroq(apiKey, [
+        { role: "system", content: RULE_SYSTEM },
+        { role: "user", content: `User's original form request:\n"${aiPrompt}"\n\nPreserve the requested relationship exactly. If the request says one field must equal another, use operator "equals". Do not change an equality requirement into "not_equals".\n\nGenerate ONLY type-compatible validation rules for these fields:\n\n${JSON.stringify(fieldsJson, null, 2)}\n\nReturn { "crossFieldRules": [...] }` },
+      ]);
 
-        if (['count_equals', 'count_gte', 'count_lte'].includes(rule.operator)) {
-          if (!secondaryType) return false;
-          const numField = primaryType === 'number' ? primaryType : (secondaryType === 'number' ? secondaryType : null);
-          const checkboxField = primaryType === 'checkbox' ? primaryType : (secondaryType === 'checkbox' ? secondaryType : null);
-          if (!numField || !checkboxField) return false;
-          return true;
-        }
-
-        if (secondaryType) {
-          if (['date_after', 'date_before'].includes(rule.operator)) {
-            if (primaryType !== 'date' || secondaryType !== 'date') return false;
-          }
-          if (['greater_than', 'less_than', 'gte', 'lte'].includes(rule.operator)) {
-            if (primaryType !== 'number' || secondaryType !== 'number') return false;
-          }
-          if (['equals', 'not_equals'].includes(rule.operator)) {
-            if (primaryType === 'date' || secondaryType === 'date') return false;
-          }
-        } else if (rule.staticValue) {
-          if (['date_after', 'date_before'].includes(rule.operator)) return false;
-          if (['greater_than', 'less_than', 'gte', 'lte'].includes(rule.operator) && primaryType !== 'number') return false;
-        }
-
-        return true;
-      };
-
-      const newRules = (generated.crossFieldRules || [])
+      // ── Post-process rules: normalize, repair, validate, dedupe ──
+      const normalizedRules = (rulesResult.crossFieldRules || [])
+        .map(r => ({
+          ...r,
+          primaryFieldLabel: normalizeLabel(r.primaryFieldLabel, fieldLabels),
+          secondaryFieldLabel: r.secondaryFieldLabel ? normalizeLabel(r.secondaryFieldLabel, fieldLabels) : null,
+        }))
+        .map(r => repairRule(r, fieldTypeMap));
+      const rawRules = explicitEqualityRules(aiPrompt, fieldLabels, fieldTypeMap, normalizedRules)
         .filter(r => validateRule(r, fieldLabels, fieldTypeMap))
-        .map((r, i) => ({
-          id: Date.now() + 1000 + i,
-          primaryFieldLabel: r.primaryFieldLabel,
-          operator: r.operator,
-          secondaryFieldLabel: r.secondaryFieldLabel,
-          staticValue: r.staticValue || null,
-          errorMessage: r.errorMessage,
-          description: r.description || '',
-          isApproved: false,
-          _reviewed: false,
-        }));
+        .map(r => {
+          if (!r.errorMessage) {
+            const opLabel = { greater_than: 'greater than', less_than: 'less than', gte: '≥', lte: '≤',
+              equals: 'must equal', not_equals: 'must not equal', date_after: 'must be after',
+              date_before: 'must be before', is_before_year: 'must be before year',
+              count_equals: 'selection count must equal', count_gte: 'selection count must be ≥',
+              count_lte: 'selection count must be ≤' }[r.operator] || r.operator;
+            const ref = r.secondaryFieldLabel || r.staticValue;
+            r.errorMessage = `"${r.primaryFieldLabel}" ${opLabel} ${ref}`;
+          }
+          if (!r.description) {
+            r.description = `Ensures ${r.primaryFieldLabel} satisfies a type-compatible constraint`;
+          }
+          return r;
+        });
 
+      const newRules = dedupeRules(rawRules).map((r, i) => ({
+        id: Date.now() + 2000 + i,
+        primaryFieldLabel: r.primaryFieldLabel,
+        operator: r.operator,
+        secondaryFieldLabel: r.secondaryFieldLabel,
+        staticValue: r.staticValue || null,
+        errorMessage: r.errorMessage,
+        description: r.description || '',
+        isApproved: false,
+        _reviewed: false,
+      }));
+
+      setFormTitle(fieldsResult.formTitle || 'Untitled Form');
       pushHistory(newFields, newRules);
       setFields(newFields);
       setRules(newRules);
@@ -672,6 +821,7 @@ CRITICAL: primaryFieldLabel and secondaryFieldLabel MUST be EXACT copies of fiel
     setPublishStatus(null);
 
     try {
+      const fieldLabels = new Set(fields.map(field => field.label));
       const payload = {
         title: formTitle,
         status: "ACTIVE",
@@ -686,7 +836,9 @@ CRITICAL: primaryFieldLabel and secondaryFieldLabel MUST be EXACT copies of fiel
           options: f.options || [],
         })),
         crossFieldRules: rules
-          .filter(r => r.isApproved)
+          .filter(r => r.isApproved
+            && fieldLabels.has(r.primaryFieldLabel)
+            && (!r.secondaryFieldLabel || fieldLabels.has(r.secondaryFieldLabel)))
           .map(r => ({
             primaryFieldLabel: r.primaryFieldLabel,
             operator: r.operator,
