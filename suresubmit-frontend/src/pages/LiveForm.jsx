@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { Send, CheckCircle, Rule, AttachFile, DeleteOutline } from '@mui/icons-material';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
 const OPERATORS = {
   greater_than: (a, b) => Number(a) > Number(b),

@@ -4,7 +4,7 @@ import { Box, Typography, Paper, Button, Chip, Divider } from '@mui/material';
 import { Rule, DataObject, Send, OpenInNew, TableChart } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
 const Dashboard = () => {
     const { user } = useAuth();

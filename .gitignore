@@ -1,2 +1,8 @@
 suresubmit-frontend/.env
-suresubmit-frontend/.env
+suresubmit-frontend/.env.*
+suresubmit-backend/target/
+suresubmit-backend/.mvn/
+*.class
+*.jar
+.DS_Store
+node_modules/

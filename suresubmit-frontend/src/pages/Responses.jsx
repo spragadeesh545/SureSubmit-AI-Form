@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { Rule, Send, DataObject, TableChart } from '@mui/icons-material';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
 const Responses = () => {
   const { id } = useParams();

@@ -13,7 +13,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Short Answer' },
@@ -466,7 +466,7 @@ export default function FormBuilder() {
     setFormTitle(snap.formTitle);
   };
 
-  const getLiveLink = () => publishedFormId ? `http://localhost:5173/form/${publishedFormId}` : '';
+  const getLiveLink = () => publishedFormId ? `${window.location.origin}/form/${publishedFormId}` : '';
 
   const callGroq = async (apiKey, messages) => {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
