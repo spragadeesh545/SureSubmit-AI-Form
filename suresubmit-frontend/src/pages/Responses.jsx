@@ -61,13 +61,13 @@ const Responses = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1100, mx: 'auto', py: 4, px: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mb: 0.5 }}>
+    <Box sx={{ maxWidth: 1100, mx: 'auto', py: 4, px: { xs: 0.5, sm: 2 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+        <Box sx={{ width: '100%' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mb: 0.5, fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
             {form.title || `Form #${form.id}`}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Chip icon={<Send />} label={`${submissions.length} responses`} size="small"
               sx={{ backgroundColor: '#dcfce7', color: '#166534', fontWeight: 600 }} />
             <Chip icon={<Rule />} label={`${activeRules.length} active rules`} size="small"
@@ -91,8 +91,8 @@ const Responses = () => {
           </Typography>
         </Paper>
       ) : (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
-          <Table size="small">
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 3, overflowX: 'auto', minWidth: 0 }}>
+          <Table size="small" sx={{ minWidth: 600 }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: '#f8fafc' }}>
                 <TableCell sx={{ fontWeight: 800, color: '#64748b', minWidth: 120 }}>Submitted At</TableCell>

@@ -61,7 +61,7 @@ function OptionsEditor({ field, onUpdate }) {
   };
 
   return (
-    <Box sx={{ pl: 5 }}>
+    <Box sx={{ pl: { xs: 0, sm: 5 } }}>
       {(field.options || []).map((opt, i) => (
         <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Typography variant="body2" sx={{ color: '#94a3b8' }}>{i + 1}.</Typography>
@@ -91,8 +91,8 @@ function OptionsEditor({ field, onUpdate }) {
 function FieldCard({ field, index, onUpdate, onRemove }) {
   return (
     <Paper elevation={0} sx={{
-      p: 3, mb: 2, border: '1px solid #e2e8f0',
-      display: 'flex', gap: 3, alignItems: 'flex-start', borderRadius: 2,
+      p: { xs: 2, sm: 3 }, mb: 2, border: '1px solid #e2e8f0',
+      display: 'flex', gap: { xs: 1, sm: 3 }, alignItems: 'flex-start', borderRadius: 2,
       transition: 'border-color 0.2s',
       '&:hover': { borderColor: '#94a3b8' }
     }}>
@@ -100,7 +100,7 @@ function FieldCard({ field, index, onUpdate, onRemove }) {
         {index + 1}.
       </Typography>
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' } }}>
           <TextField
             fullWidth label="Field Label" variant="outlined" size="small"
             value={field.label}
@@ -109,7 +109,7 @@ function FieldCard({ field, index, onUpdate, onRemove }) {
           <TextField
             select label="Input Type" size="small" value={field.inputType}
             onChange={(e) => onUpdate(field.id, 'inputType', e.target.value)}
-            sx={{ minWidth: 160 }}
+            sx={{ minWidth: { xs: '100%', sm: 160 } }}
           >
             {FIELD_TYPES.map((t) => (
               <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
@@ -120,7 +120,7 @@ function FieldCard({ field, index, onUpdate, onRemove }) {
             color={field.isRequired ? 'error' : 'default'}
             onClick={() => onUpdate(field.id, 'isRequired', !field.isRequired)}
             variant={field.isRequired ? 'filled' : 'outlined'}
-            sx={{ cursor: 'pointer', fontWeight: 600 }}
+            sx={{ cursor: 'pointer', fontWeight: 600, alignSelf: { xs: 'flex-start', sm: 'center' } }}
           />
         </Box>
 
@@ -147,9 +147,9 @@ function RuleCard({ rule, index, onApprove, onReject }) {
       backgroundColor: rule.isApproved ? '#f0fdf4' : '#ffffff',
       transition: 'all 0.3s ease',
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box sx={{ flex: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: { xs: 'column', sm: 'row' } }}>
+        <Box sx={{ flex: 1, width: '100%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
             <Rule sx={{ color: '#6366f1', fontSize: 20 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Rule #{index + 1}
@@ -172,7 +172,7 @@ function RuleCard({ rule, index, onApprove, onReject }) {
             Error: {rule.errorMessage}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 }, justifyContent: { xs: 'flex-end', sm: 'flex-start' } }}>
           <Tooltip title="Approve Rule">
             <IconButton onClick={() => onApprove(rule.id)} sx={{
               color: '#10b981', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0',
@@ -231,11 +231,11 @@ function ShareDialog({ open, onClose, shareableLink, formTitle }) {
             <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>
               Anyone with this link can view and fill out this form.
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' } }}>
               <TextField fullWidth size="small" value={shareableLink} InputProps={{ readOnly: true }}
                 sx={{ backgroundColor: '#f8fafc' }} />
               <Button variant="contained" onClick={handleCopyLink} startIcon={copied ? <CheckCircle /> : <ContentCopy />}
-                sx={{ minWidth: 100, textTransform: 'none', fontWeight: 600,
+                sx={{ minWidth: { xs: '100%', sm: 100 }, textTransform: 'none', fontWeight: 600,
                   backgroundColor: copied ? '#10b981' : '#6366f1' }}>
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
@@ -923,19 +923,20 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
       <Paper elevation={0} sx={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         p: '8px 16px', mb: 0, borderBottom: '1px solid #e2e8f0', borderRadius: 0,
-        position: 'sticky', top: '64px', zIndex: 1000, backgroundColor: '#ffffff'
+        position: 'sticky', top: '64px', zIndex: 1000, backgroundColor: '#ffffff',
+        overflowX: 'auto', gap: 1
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, color: '#6366f1', letterSpacing: '-0.5px' }}>
             SureSubmit
           </Typography>
-          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-          <Typography variant="body1" sx={{ color: '#475569', fontWeight: 500, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0, sm: 1 }, display: { xs: 'none', sm: 'block' } }} />
+          <Typography variant="body1" sx={{ color: '#475569', fontWeight: 500, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'block' } }}>
             {formTitle}
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
           <Tooltip title="Preview Form">
             <IconButton onClick={() => setPreviewOpen(true)} disabled={fields.length === 0}>
               <Visibility sx={{ color: fields.length > 0 ? '#64748b' : '#cbd5e1' }} />
@@ -989,13 +990,13 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
           <Button
             variant="contained" onClick={handlePublish} disabled={isPublishing}
             sx={{
-              backgroundColor: '#6366f1', color: '#fff', fontWeight: 700, ml: 1, px: 3,
-              borderRadius: 2, textTransform: 'none',
+              backgroundColor: '#6366f1', color: '#fff', fontWeight: 700, ml: { xs: 0.5, sm: 1 }, px: { xs: 1.5, sm: 3 },
+              borderRadius: 2, textTransform: 'none', whiteSpace: 'nowrap',
               boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)',
               '&:hover': { backgroundColor: '#4f46e5' }
             }}
           >
-            {isPublishing ? 'Publishing...' : 'Publish'}
+            {isPublishing ? '...' : 'Publish'}
           </Button>
         </Box>
       </Paper>
@@ -1045,7 +1046,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         accentColor={accentColor}
       />
 
-      <Box sx={{ maxWidth: 800, margin: '0 auto', px: 2, mt: 3 }}>
+      <Box sx={{ maxWidth: 800, margin: '0 auto', px: { xs: 1, sm: 2 }, mt: 3 }}>
 
         {/* AI GENERATION CARD */}
         <Paper elevation={0} sx={{
@@ -1062,12 +1063,12 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
           <Typography variant="body2" sx={{ color: '#64748b', mb: 3 }}>
             Describe your form. AI generates fields AND cross-field validation rules automatically.
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField fullWidth placeholder="e.g., Create a student enrollment form with admission year, graduation year, total marks, and obtained marks" variant="outlined"
               value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} disabled={isGenerating}
               sx={{ backgroundColor: '#fff' }} />
             <Button variant="contained" onClick={handleAIGeneration} disabled={isGenerating || !aiPrompt}
-              sx={{ backgroundColor: '#6366f1', color: '#fff', px: 4, '&:hover': { backgroundColor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}>
+              sx={{ backgroundColor: '#6366f1', color: '#fff', px: 4, '&:hover': { backgroundColor: '#4f46e5' }, textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
               {isGenerating ? 'Generating...' : 'Generate'}
             </Button>
           </Box>
@@ -1110,12 +1111,12 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
                 onApprove={handleApproveRule} onReject={handleRejectRule} />
             ))}
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-              <Alert severity="info" sx={{ flex: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+              <Alert severity="info" sx={{ flex: 1, width: { xs: '100%', sm: 'auto' } }}>
                 {approvedRulesCount} approved / {rules.length} total rules
               </Alert>
               <Button variant="contained" onClick={() => setApprovalStep(false)}
-                sx={{ ml: 2, backgroundColor: '#6366f1', textTransform: 'none', fontWeight: 600 }}>
+                sx={{ ml: { xs: 0, sm: 2 }, backgroundColor: '#6366f1', textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
                 Done Reviewing
               </Button>
             </Box>
@@ -1126,7 +1127,8 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         {!approvalStep && rules.length > 0 && (
           <Paper elevation={0} sx={{
             p: 3, mb: 4, border: '1px solid #e2e8f0', borderRadius: 2,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' }, gap: 1
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Rule sx={{ color: '#6366f1' }} />

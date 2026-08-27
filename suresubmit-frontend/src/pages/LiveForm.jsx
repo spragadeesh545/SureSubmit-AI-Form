@@ -374,9 +374,9 @@ const LiveForm = () => {
 
   if (submitted) {
     return (
-      <Box sx={{ maxWidth: 600, mx: 'auto', py: 8, px: 2 }}>
+      <Box sx={{ maxWidth: 600, mx: 'auto', py: 6, px: { xs: 1, sm: 2 } }}>
         <Paper elevation={0} sx={{
-          p: 6, textAlign: 'center', border: '2px solid #10b981',
+          p: { xs: 3, sm: 6 }, textAlign: 'center', border: '2px solid #10b981',
           borderRadius: 3, backgroundColor: '#f0fdf4'
         }}>
           <CheckCircle sx={{ fontSize: 64, color: '#10b981', mb: 2 }} />
@@ -404,14 +404,14 @@ const LiveForm = () => {
   const hasValidationErrors = Object.keys(errors).length > 0;
 
   return (
-    <Box sx={{ maxWidth: 700, mx: 'auto', py: 4, px: 2 }}>
+    <Box sx={{ maxWidth: 700, mx: 'auto', py: 4, px: { xs: 1, sm: 2 } }}>
 
       {/* FORM HEADER */}
       <Paper elevation={0} sx={{
-        p: 4, mb: 4, border: '1px solid #e2e8f0',
+        p: { xs: 2.5, sm: 4 }, mb: 4, border: '1px solid #e2e8f0',
         borderTop: `8px solid ${form.themeColor || '#6366f1'}`, borderRadius: 2
       }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mb: 1, fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
           {form.title || `Form #${form.id}`}
         </Typography>
         {form.description && (

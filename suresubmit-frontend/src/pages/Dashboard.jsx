@@ -46,8 +46,8 @@ const Dashboard = () => {
     }
 
     return (
-        <Box sx={{ py: 4, maxWidth: 1200, mx: 'auto', px: 2 }}>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mb: 1 }}>
+        <Box sx={{ py: 4, maxWidth: 1200, mx: 'auto', px: { xs: 0.5, sm: 2 } }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: '#0f172a', mb: 1, fontSize: { xs: '1.5rem', sm: '2.125rem' } }}>
               My Form Dashboard
             </Typography>
             <Typography variant="body1" sx={{ color: '#64748b', mb: 4 }}>
@@ -63,7 +63,7 @@ const Dashboard = () => {
                 </Button>
               </Paper>
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 2.5 }}>
                 {forms.map((form) => {
                   const fieldCount = form.fields ? form.fields.length : 0;
                   const ruleCount = form.crossFieldRules ? form.crossFieldRules.length : 0;
@@ -88,7 +88,7 @@ const Dashboard = () => {
 
                       <Divider sx={{ mb: 2 }} />
 
-                      <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
+                      <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <DataObject sx={{ fontSize: 18, color: '#6366f1' }} />
                           <Typography variant="body2" sx={{ fontWeight: 600, color: '#475569' }}>
@@ -123,7 +123,7 @@ const Dashboard = () => {
                         </Box>
                       )}
 
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
                         <Button fullWidth variant="contained" endIcon={<OpenInNew />}
                           onClick={() => navigate(`/form/${form.id}`)}
                           sx={{ py: 1, textTransform: 'none', fontWeight: 600, backgroundColor: '#0f172a',

@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Container, Button, Box, ThemeProvider, createTheme, CssBaseline, Paper, Divider, Menu, MenuItem, Avatar, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Drawer, Tooltip, IconButton } from '@mui/material';
-import { Create, FormatListBulleted, SettingsInputComponent, Dashboard as DashboardIcon, Home, Menu as MenuIcon } from '@mui/icons-material';
+import { AppBar, Toolbar, Typography, Container, Button, Box, ThemeProvider, createTheme, CssBaseline, Paper, Divider, Menu, MenuItem, Avatar, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Drawer, Tooltip, IconButton, useMediaQuery } from '@mui/material';
+import { Create, FormatListBulleted, SettingsInputComponent, Dashboard as DashboardIcon, Home, Menu as MenuIcon, Close } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import FormBuilder from './pages/FormBuilder'; 
 import Dashboard from './pages/Dashboard'; 
@@ -91,22 +91,22 @@ function HomePage() {
   }, [user]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, alignItems: 'center' }}>
-      <Box sx={{ flex: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 3, md: 4 }, alignItems: 'center' }}>
+      <Box sx={{ flex: 1, width: '100%' }}>
         <Typography variant="overline" sx={{ fontWeight: 700, color: '#64748b', letterSpacing: '1px' }}>
           FORM ENGINEERING PLATFORM
         </Typography>
-        <Typography variant="h3" sx={{ fontWeight: 800, mt: 1, mb: 3, letterSpacing: '-1px', lineHeight: 1.2 }}>
+        <Typography variant="h3" sx={{ fontWeight: 800, mt: 1, mb: 3, letterSpacing: '-1px', lineHeight: 1.2, fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' } }}>
           Build dynamic forms with absolute precision.
         </Typography>
-        <Typography variant="h6" sx={{ color: 'text.secondary', mb: 4, fontWeight: 400, lineHeight: 1.6 }}>
+        <Typography variant="h6" sx={{ color: 'text.secondary', mb: 4, fontWeight: 400, lineHeight: 1.6, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
           AI-powered form creation with automatic cross-field validation rules, human-in-the-loop approval, and enterprise data sovereignty.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" color="primary" size="large" startIcon={<Create />} onClick={() => navigate('/build')} sx={{ px: 4, py: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Button variant="contained" color="primary" size="large" startIcon={<Create />} onClick={() => navigate('/build')} sx={{ px: 4, py: 1.5, width: { xs: '100%', sm: 'auto' } }}>
             New Form
           </Button>
-          <Button variant="text" color="primary" size="large" startIcon={<FormatListBulleted />} onClick={() => navigate('/dashboard')} sx={{ px: 3, py: 1.5 }}>
+          <Button variant="text" color="primary" size="large" startIcon={<FormatListBulleted />} onClick={() => navigate('/dashboard')} sx={{ px: 3, py: 1.5, width: { xs: '100%', sm: 'auto' } }}>
             View My Forms
           </Button>
         </Box>
@@ -158,12 +158,13 @@ function AppNavBar({ onMenuToggle }) {
           </>
         ) : (
           <>
-            <Button color="primary" onClick={() => navigate('/login')} sx={{ fontWeight: 600 }}>
+            <Button color="primary" onClick={() => navigate('/login')} sx={{ fontWeight: 600, px: { xs: 1, sm: 2 }, minWidth: 0, fontSize: { xs: '0.85rem', sm: '1rem' } }}>
               Sign In
             </Button>
             <Button variant="contained" onClick={() => navigate('/login')}
-              sx={{ ml: 1, backgroundColor: '#6366f1', '&:hover': { backgroundColor: '#4f46e5' } }}>
-              Create Account
+              sx={{ ml: 1, backgroundColor: '#6366f1', '&:hover': { backgroundColor: '#4f46e5' }, px: { xs: 1.5, sm: 2 }, fontSize: { xs: '0.85rem', sm: '1rem' }, whiteSpace: 'nowrap' }}>
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Create Account</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Sign Up</Box>
             </Button>
           </>
         )}
@@ -172,9 +173,10 @@ function AppNavBar({ onMenuToggle }) {
   );
 }
 
-function SideNav({ open }) {
+function SideNav({ open, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useMediaQuery((theme) => theme.breakpoints.down('md'));
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -189,6 +191,65 @@ function SideNav({ open }) {
     { path: '/dashboard', label: 'My Forms', icon: <DashboardIcon /> },
     { path: '/build', label: 'New Form', icon: <Create /> },
   ];
+
+  const content = (
+    <Box sx={{ p: 1 }}>
+      <List sx={{ py: 0 }}>
+        {items.map((item) => {
+          const active = isActive(item.path);
+          return (
+            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => { navigate(item.path); if (isMobile && onClose) onClose(); }}
+                sx={{
+                  borderRadius: 2,
+                  minHeight: 44,
+                  px: 2,
+                  backgroundColor: active ? '#f5f3ff' : 'transparent',
+                  '&:hover': { backgroundColor: active ? '#ede9fe' : '#f8fafc' },
+                  '& .MuiListItemIcon-root': { minWidth: 0, mr: 1.5 },
+                }}
+              >
+                <ListItemIcon sx={{ color: active ? '#6366f1' : '#64748b' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  sx={{
+                    '& .MuiTypography-root': {
+                      fontWeight: active ? 700 : 500,
+                      color: active ? '#6366f1' : '#475569',
+                      fontSize: '0.9rem',
+                    },
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={open}
+        onClose={onClose}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: DRAWER_WIDTH,
+            boxSizing: 'border-box',
+            backgroundColor: '#ffffff',
+            pt: '64px',
+          },
+        }}
+      >
+        {content}
+      </Drawer>
+    );
+  }
 
   return (
     <Drawer
@@ -210,42 +271,7 @@ function SideNav({ open }) {
         },
       }}
     >
-      <Box sx={{ p: 1 }}>
-        <List sx={{ py: 0 }}>
-          {items.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => navigate(item.path)}
-                  sx={{
-                    borderRadius: 2,
-                    minHeight: 44,
-                    px: 2,
-                    backgroundColor: active ? '#f5f3ff' : 'transparent',
-                    '&:hover': { backgroundColor: active ? '#ede9fe' : '#f8fafc' },
-                    '& .MuiListItemIcon-root': { minWidth: 0, mr: 1.5 },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: active ? '#6366f1' : '#64748b' }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    sx={{
-                      '& .MuiTypography-root': {
-                        fontWeight: active ? 700 : 500,
-                        color: active ? '#6366f1' : '#475569',
-                        fontSize: '0.9rem',
-                      },
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
-      </Box>
+      {content}
     </Drawer>
   );
 }
@@ -266,18 +292,23 @@ function AppRoutes() {
 function AppShell() {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const isMobile = useMediaQuery((theme) => theme.breakpoints.down('md'));
 
   const showSidebar = user && location.pathname !== '/login';
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [location.pathname, isMobile]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {showSidebar && <SideNav open={sidebarOpen} />}
+      {showSidebar && <SideNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />}
       <Box component="main" sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <AppNavBar
           onMenuToggle={showSidebar ? () => setSidebarOpen(!sidebarOpen) : null}
         />
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flexGrow: 1 }}>
+        <Container maxWidth="lg" sx={{ mt: 2, mb: 4, flexGrow: 1, px: { xs: 1.5, sm: 3 } }}>
           <AppRoutes />
         </Container>
       </Box>

@@ -40,9 +40,9 @@ const Login = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh' }}>
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh', px: { xs: 1, sm: 0 } }}>
       <Paper elevation={0} sx={{
-        p: 5, maxWidth: 440, width: '100%',
+        p: { xs: 3, sm: 5 }, maxWidth: 440, width: '100%',
         border: '1px solid #e2e8f0', borderRadius: 3,
         borderTop: '8px solid #6366f1'
       }}>
