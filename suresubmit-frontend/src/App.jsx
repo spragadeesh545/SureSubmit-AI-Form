@@ -317,6 +317,15 @@ function AppShell() {
 }
 
 function App() {
+  useEffect(() => {
+    const pingBackend = () => {
+      fetch(`${API_BASE}/api/health`).catch(() => {});
+    };
+    pingBackend();
+    const interval = setInterval(pingBackend, 3 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <ThemeProvider theme={bespokeTheme}>
       <CssBaseline />
