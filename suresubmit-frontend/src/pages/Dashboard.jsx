@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Paper, Button, Chip, Divider } from '@mui/material';
-import { Rule, DataObject, Send, OpenInNew, TableChart } from '@mui/icons-material';
+import { Box, Typography, Paper, Button, Chip, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Alert } from '@mui/material';
+import { Rule, DataObject, Send, OpenInNew, TableChart, Delete, Close, Lock } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
@@ -11,9 +11,13 @@ const Dashboard = () => {
     const [forms, setForms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submissionCounts, setSubmissionCounts] = useState({});
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteError, setDeleteError] = useState('');
+    const [deleting, setDeleting] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
+    const fetchForms = () => {
         const userId = user?.userId;
         const url = userId ? `${API_BASE}/api/forms?userId=${userId}` : `${API_BASE}/api/forms`;
         fetch(url)
@@ -35,7 +39,64 @@ const Dashboard = () => {
                 console.error("Error fetching forms:", error);
                 setLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchForms();
     }, []);
+
+    const openDeleteDialog = (form) => {
+        setDeleteTarget(form);
+        setDeletePassword('');
+        setDeleteError('');
+    };
+
+    const closeDeleteDialog = () => {
+        setDeleteTarget(null);
+        setDeletePassword('');
+        setDeleteError('');
+        setDeleting(false);
+    };
+
+    const confirmDelete = async () => {
+        const token = localStorage.getItem('suresubmit_token');
+        if (!token) {
+            setDeleteError('You are not logged in.');
+            return;
+        }
+        setDeleting(true);
+        setDeleteError('');
+        try {
+            const res = await fetch(`${API_BASE}/api/forms/${deleteTarget.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ password: deletePassword }),
+            });
+            if (res.status === 401) {
+                setDeleteError('Session expired. Please log in again.');
+            } else if (res.status === 403) {
+                setDeleteError('Incorrect password. Form was not deleted.');
+            } else if (res.ok) {
+                setSubmissionCounts((prev) => {
+                    const next = { ...prev };
+                    delete next[deleteTarget.id];
+                    return next;
+                });
+                setForms((prev) => prev.filter((f) => f.id !== deleteTarget.id));
+                closeDeleteDialog();
+            } else {
+                setDeleteError('Failed to delete the form. Please try again.');
+            }
+        } catch (err) {
+            console.error("Delete error:", err);
+            setDeleteError('Network error. Please try again.');
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -79,11 +140,17 @@ const Dashboard = () => {
                         <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a', flex: 1 }}>
                           {form.title || `Untitled Form #${form.id}`}
                         </Typography>
-                        <Chip label={form.status} size="small" sx={{
-                          backgroundColor: form.status === 'ACTIVE' ? '#dcfce7' : '#f1f5f9',
-                          color: form.status === 'ACTIVE' ? '#166534' : '#475569',
-                          fontWeight: 600
-                        }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Chip label={form.status} size="small" sx={{
+                            backgroundColor: form.status === 'ACTIVE' ? '#dcfce7' : '#f1f5f9',
+                            color: form.status === 'ACTIVE' ? '#166534' : '#475569',
+                            fontWeight: 600
+                          }} />
+                          <IconButton size="small" onClick={() => openDeleteDialog(form)} aria-label="Delete form"
+                            sx={{ color: '#94a3b8', '&:hover': { color: '#ef4444', backgroundColor: '#fef2f2' } }}>
+                            <Delete sx={{ fontSize: 20 }} />
+                          </IconButton>
+                        </Box>
                       </Box>
 
                       <Divider sx={{ mb: 2 }} />
@@ -142,6 +209,51 @@ const Dashboard = () => {
                 })}
               </Box>
             )}
+
+            {/* DELETE CONFIRMATION DIALOG */}
+            <Dialog open={Boolean(deleteTarget)} onClose={closeDeleteDialog} maxWidth="xs" fullWidth
+              PaperProps={{ sx: { borderRadius: 3 } }}>
+              <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700, color: '#b91c1c' }}>
+                  <Delete sx={{ color: '#ef4444' }} />
+                  Delete Form
+                </Box>
+                <IconButton onClick={closeDeleteDialog} size="small" aria-label="Close">
+                  <Close />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent dividers>
+                <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>
+                  You are about to permanently delete <strong>"{deleteTarget?.title || `Form #${deleteTarget?.id}`}"</strong>.
+                  This will also delete its {deleteTarget ? (submissionCounts[deleteTarget.id] || 0) : 0} submission(s) and cannot be undone.
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#64748b', mb: 1 }}>
+                  Enter your account password to confirm. A wrong password will cancel the deletion.
+                </Typography>
+                <TextField
+                  type="password" fullWidth size="small"
+                  label="Account Password" value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !deleting) confirmDelete(); }}
+                  disabled={deleting}
+                />
+                {deleteError && (
+                  <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }} onClose={() => setDeleteError('')}>
+                    {deleteError}
+                  </Alert>
+                )}
+              </DialogContent>
+              <DialogActions sx={{ p: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+                <Button onClick={closeDeleteDialog} disabled={deleting} startIcon={<Lock />}
+                  sx={{ textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
+                  Cancel
+                </Button>
+                <Button variant="contained" color="error" onClick={confirmDelete} disabled={deleting || !deletePassword}
+                  sx={{ textTransform: 'none', fontWeight: 700, width: { xs: '100%', sm: 'auto' } }}>
+                  {deleting ? 'Deleting...' : 'Delete Form'}
+                </Button>
+              </DialogActions>
+            </Dialog>
         </Box>
     );
 };

@@ -771,9 +771,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
           primaryFieldLabel: normalizeLabel(r.primaryFieldLabel, fieldLabels),
           secondaryFieldLabel: r.secondaryFieldLabel ? normalizeLabel(r.secondaryFieldLabel, fieldLabels) : null,
         }))
-        .map(r => repairRule(r, fieldTypeMap));
-      const rawRules = explicitEqualityRules(aiPrompt, fieldLabels, fieldTypeMap, normalizedRules)
-        .filter(r => validateRule(r, fieldLabels, fieldTypeMap))
+        .map(r => repairRule(r, fieldTypeMap))
         .map(r => {
           if (!r.errorMessage) {
             const opLabel = { greater_than: 'greater than', less_than: 'less than', gte: '≥', lte: '≤',
@@ -792,6 +790,8 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
           }
           return r;
         });
+      const rawRules = explicitEqualityRules(aiPrompt, fieldLabels, fieldTypeMap, normalizedRules)
+        .filter(r => validateRule(r, fieldLabels, fieldTypeMap));
 
       const newRules = dedupeRules(rawRules).map((r, i) => ({
         id: Date.now() + 2000 + i,
