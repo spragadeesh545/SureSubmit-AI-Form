@@ -3,9 +3,11 @@ import { useParams } from 'react-router-dom';
 import {
   Box, Button, Typography, TextField, MenuItem, Paper, Alert, Chip,
   LinearProgress, Divider, Checkbox, FormControlLabel, Radio,
-  RadioGroup, FormControl, InputLabel, Select, OutlinedInput, Input
+  RadioGroup, FormControl, InputLabel, Select, OutlinedInput, Input,
+  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Table, TableBody,
+  TableCell, TableContainer, TableRow, Snackbar
 } from '@mui/material';
-import { Send, CheckCircle, Rule, AttachFile, DeleteOutline } from '@mui/icons-material';
+import { Send, CheckCircle, Rule, AttachFile, DeleteOutline, Close } from '@mui/icons-material';
 import { isPastEventDateField, todayISO } from '../utils/dateFields';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
@@ -283,6 +285,7 @@ const LiveForm = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/forms/${id}`)
@@ -322,7 +325,7 @@ const LiveForm = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitError(null);
 
@@ -343,6 +346,10 @@ const LiveForm = () => {
       }
     }
 
+    setReviewOpen(true);
+  };
+
+  const confirmSubmit = async () => {
     setSubmitting(true);
 
     try {
@@ -519,6 +526,59 @@ const LiveForm = () => {
           {submitting ? 'Submitting...' : 'Submit Response'}
         </Button>
       </form>
+
+      {/* REVIEW & CONFIRM DIALOG */}
+      <Dialog open={reviewOpen} onClose={() => setReviewOpen(false)} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
+            <CheckCircle sx={{ color: '#10b981' }} />
+            Review Your Answers
+          </Box>
+          <IconButton onClick={() => setReviewOpen(false)} size="small" aria-label="Close">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>
+            Please verify your information before submitting. If anything is wrong, close this box to edit your answers.
+          </Typography>
+          <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}>
+            <Table size="small">
+              <TableBody>
+                {(form.fields || []).map((field, index) => {
+                  const val = values[field.label];
+                  const display = field.inputType === 'checkbox'
+                    ? (Array.isArray(val) && val.length > 0 ? val.join(', ') : '—')
+                    : (!val || String(val).trim() === '' ? '—' : String(val));
+                  return (
+                    <TableRow key={index} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableCell sx={{ fontWeight: 700, color: '#334155', width: '40%', verticalAlign: 'top' }}>
+                        {field.label}
+                        {field.isRequired && <span style={{ color: '#ef4444' }}> *</span>}
+                      </TableCell>
+                      <TableCell sx={{ color: '#64748b' }}>{display}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {submitError && <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>{submitError}</Alert>}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+          <Button onClick={() => setReviewOpen(false)} sx={{ textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
+            ← Edit Answers
+          </Button>
+          <Button variant="contained" onClick={confirmSubmit} disabled={submitting} startIcon={submitting ? <LinearProgress /> : <Send />}
+            sx={{
+              textTransform: 'none', fontWeight: 700, backgroundColor: '#10b981',
+              '&:hover': { backgroundColor: '#059669' }, width: { xs: '100%', sm: 'auto' }
+            }}>
+            {submitting ? 'Submitting...' : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* DATA SOVEREIGNTY FOOTER */}
       <Paper elevation={0} sx={{
