@@ -78,10 +78,18 @@ const Dashboard = () => {
                 },
                 body: JSON.stringify({ password: deletePassword }),
             });
+
             if (res.status === 401) {
                 setDeleteError('Session expired. Please log in again.');
             } else if (res.status === 403) {
-                setDeleteError('Incorrect password. Form was not deleted.');
+                setDeleteError('Incorrect password. The form was not deleted.');
+            } else if (res.status === 400) {
+                let msg = 'The request was invalid. Please try again.';
+                try {
+                    const body = await res.json();
+                    if (body && body.message) msg = body.message;
+                } catch (parseErr) { /* ignore */ }
+                setDeleteError(msg);
             } else if (res.ok) {
                 setSubmissionCounts((prev) => {
                     const next = { ...prev };
@@ -90,12 +98,18 @@ const Dashboard = () => {
                 });
                 setForms((prev) => prev.filter((f) => f.id !== deleteTarget.id));
                 closeDeleteDialog();
+            } else if (res.status === 405) {
+                setDeleteError('The delete feature is not available on the server yet. The backend may need a redeploy.');
             } else {
-                setDeleteError('Failed to delete the form. Please try again.');
+                setDeleteError(`Request failed (status ${res.status}). Please try again.`);
             }
         } catch (err) {
             console.error("Delete error:", err);
-            setDeleteError('Network error. Please try again.');
+            if (err && err.name === 'TypeError') {
+                setDeleteError('Server unreachable or CORS blocked. Check that the backend is deployed and reachable.');
+            } else {
+                setDeleteError('Network error. Please try again.');
+            }
         } finally {
             setDeleting(false);
         }

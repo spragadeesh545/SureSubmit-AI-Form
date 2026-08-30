@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box, Button, Typography, TextField, MenuItem, Paper, Alert, Chip,
   LinearProgress, Divider, Checkbox, FormControlLabel, Radio,
   RadioGroup, FormControl, InputLabel, Select, OutlinedInput, Input,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Table, TableBody,
-  TableCell, TableContainer, TableRow, Snackbar
+  TableCell, TableContainer, TableRow
 } from '@mui/material';
 import { Send, CheckCircle, Rule, AttachFile, DeleteOutline, Close } from '@mui/icons-material';
 import { isPastEventDateField, todayISO } from '../utils/dateFields';
@@ -276,6 +276,15 @@ function renderField(field, value, onChange, error, fieldRules) {
   }
 }
 
+const hasDraftKey = (formId) => `suresubmit_draft_${formId}`;
+
+const isValuesEmpty = (v) => {
+  if (!v) return true;
+  return Object.values(v).every((val) =>
+    Array.isArray(val) ? val.length === 0 : val === '' || val === null || val === undefined
+  );
+};
+
 const LiveForm = () => {
   const { id } = useParams();
   const [form, setForm] = useState(null);
@@ -286,6 +295,26 @@ const LiveForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [draftAvailable, setDraftAvailable] = useState(false);
+  const saveTimer = useRef(null);
+
+  const persistDraft = (formId, vals) => {
+    try {
+      if (isValuesEmpty(vals)) {
+        localStorage.removeItem(hasDraftKey(formId));
+      } else {
+        localStorage.setItem(hasDraftKey(formId), JSON.stringify(vals));
+      }
+    } catch (e) {
+      console.error("Failed to save draft:", e);
+    }
+  };
+
+  const clearDraft = (formId) => {
+    try {
+      localStorage.removeItem(hasDraftKey(formId));
+    } catch (e) { /* ignore */ }
+  };
 
   useEffect(() => {
     fetch(`${API_BASE}/api/forms/${id}`)
@@ -303,6 +332,16 @@ const LiveForm = () => {
         }
         setValues(initial);
         setLoading(false);
+
+        let existing = null;
+        try {
+          const raw = localStorage.getItem(hasDraftKey(data.id));
+          if (raw) existing = JSON.parse(raw);
+        } catch (e) { /* ignore */ }
+
+        if (existing && !isValuesEmpty(existing)) {
+          setDraftAvailable(true);
+        }
       })
       .catch((err) => {
         console.error("Error fetching form:", err);
@@ -323,6 +362,32 @@ const LiveForm = () => {
       const newErrors = validateCrossFieldRules(newValues, form.crossFieldRules);
       setErrors(newErrors);
     }
+
+    if (form) {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => persistDraft(form.id, newValues), 500);
+    }
+  };
+
+  const restoreDraft = () => {
+    try {
+      const raw = localStorage.getItem(hasDraftKey(form.id));
+      if (raw) {
+        const saved = JSON.parse(raw);
+        setValues(saved);
+        if (form.crossFieldRules) {
+          setErrors(validateCrossFieldRules(saved, form.crossFieldRules));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore draft:", e);
+    }
+    setDraftAvailable(false);
+  };
+
+  const discardDraft = () => {
+    clearDraft(form.id);
+    setDraftAvailable(false);
   };
 
   const handleSubmit = (e) => {
@@ -368,6 +433,8 @@ const LiveForm = () => {
         throw new Error('Submission failed. Please try again.');
       }
 
+      if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+      clearDraft(form.id);
       setSubmitted(true);
     } catch (err) {
       console.error("Submission error:", err);
@@ -451,6 +518,28 @@ const LiveForm = () => {
           </Box>
         )}
       </Paper>
+
+      {/* DRAFT RESTORE BANNER */}
+      {draftAvailable && form && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button size="small" color="primary" variant="contained"
+                onClick={restoreDraft} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                Restore
+              </Button>
+              <Button size="small" color="inherit"
+                onClick={discardDraft} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Discard
+              </Button>
+            </Box>
+          }
+        >
+          <Typography variant="body2">
+            <strong>You have a saved draft</strong> from your previous visit. Would you like to continue where you left off?
+          </Typography>
+        </Alert>
+      )}
 
       {/* SUBMIT ERROR */}
       {submitError && (
