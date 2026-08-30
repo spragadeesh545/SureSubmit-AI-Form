@@ -80,9 +80,10 @@ public class FormSubmissionController {
         Object compareValue = rule.getSecondaryField() != null
             ? values.get(rule.getSecondaryField().getLabel())
             : rule.getStaticValue();
-        if (isBlank(compareValue)) return true;
+        if (isBlank(compareValue) && !"date_not_future".equals(rule.getOperator())) return true;
 
         return switch (rule.getOperator()) {
+            case "date_not_future" -> !LocalDate.parse(String.valueOf(primaryValue)).isAfter(LocalDate.now());
             case "greater_than" -> number(primaryValue) > number(compareValue);
             case "less_than" -> number(primaryValue) < number(compareValue);
             case "gte" -> number(primaryValue) >= number(compareValue);

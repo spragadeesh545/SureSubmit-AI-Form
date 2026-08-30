@@ -12,6 +12,7 @@ import {
   Edit, PersonAdd, ContentCut, Close, ColorLens, ConfirmationNumber
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { isPastEventDateField } from '../utils/dateFields';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
@@ -43,6 +44,7 @@ const OPERATORS = [
   { value: 'count_gte', label: 'Number of selections must be >= to' },
   { value: 'count_lte', label: 'Number of selections must be <= to' },
   { value: 'is_before_year', label: 'Must be before year' },
+  { value: 'date_not_future', label: 'Must not be a future date (≤ today)' },
 ];
 
 function OptionsEditor({ field, onUpdate }) {
@@ -522,6 +524,9 @@ export default function FormBuilder() {
       case 'is_before_year':
         return !secondaryType && pFamily === 'date' && /^\d{4}$/.test(String(sv || '').trim());
 
+      case 'date_not_future':
+        return !secondaryType && pFamily === 'date';
+
       case 'equals':
       case 'not_equals': {
         if (pFamily === 'file' || pFamily === 'multi') return false;
@@ -662,7 +667,13 @@ BE PROACTIVE — Do NOT wait for the user to ask for rules. Infer rules from the
 - If two date fields exist (start/end) → suggest date_after/date_before
 - If a password + confirm password exist → suggest equals
 - If a number field alone exists → suggest gte "0" (or a reasonable lower bound) using staticValue
-- If a date field that implies a deadline or birth date exists → suggest is_before_year with current year or reasonable year
+- For a single Date field: use the date_not_future rule. This rule checks the selected date is NOT in the future (≤ today) at submission time.
+
+DATE FIELD RULE DECISION (date_not_future):
+- CLEARLY-PAST fields the UI already restricts to today, so DO NOT suggest date_not_future for them: "date of birth", "dob", "birth date", "birthday", "admission date", "date of admission", "joining date", "date of joining", "enrollment date", "hire date", "date of issue", "issue date", "purchase date", "order date", "invoice date", "signature date", "registration date", "incident date", "accident date", "date of marriage", "date of death".
+  → These are handled by the date picker automatically. Skip them entirely.
+- AMBIGUOUS date fields (it's unclear whether the value is a past or future date) → ALWAYS suggest date_not_future with no secondaryFieldLabel and no staticValue.
+  Examples of ambiguous: "graduation date", "completion date", "course date", "result date", "exam date", "test date", "event date", "appointment date", "deadline-entered date", or any date field not in the clearly-past list above.
 
 OPERATOR ↔ FIELD-TYPE COMPATIBILITY MATRIX:
 | Operator(s)                    | Allowed combination                                |
@@ -671,6 +682,7 @@ OPERATOR ↔ FIELD-TYPE COMPATIBILITY MATRIX:
 | greater_than, less_than, gte, lte | number field ↔ numeric staticValue ("0","100")   |
 | date_after, date_before        | date field ↔ date field                            |
 | date_after, date_before        | date field ↔ ISO date staticValue ("YYYY-MM-DD")  |
+| date_not_future                | date field alone (no secondary, no staticValue)    |
 | is_before_year                 | date field ↔ year staticValue ("YYYY")             |
 | equals, not_equals             | SAME type only: password↔password, email↔email, text↔text, dropdown↔dropdown, radio↔radio |
 | count_equals, count_gte, count_lte | number field (PRIMARY) ↔ checkbox field (SECONDARY) |
@@ -681,13 +693,16 @@ DERIVATION PROCEDURE:
 3. For number+checkbox pairs → ALWAYS suggest count_equals (or count_gte/lte).
 4. For number+number pairs with logical names (total/obtained, min/max) → suggest bounds.
 5. For number-only fields → suggest gte "0" with staticValue.
-6. For date+date pairs → suggest ordering.
-7. For password pairs → suggest equals.
+6. For date+date pairs → suggest ordering (date_after/date_before).
+7. For a single ambiguous date field → suggest date_not_future (no secondary, no staticValue).
+8. For password pairs → suggest equals.
 
 CRITICAL RULES:
 - NEVER compare a field to itself.
 - NEVER mix incompatible types.
 - Number (primary) + checkbox (secondary) for count rules.
+- date_not_future is ALWAYS: secondaryFieldLabel: null and staticValue: null.
+- NEVER produce date_not_future for clearly-past fields listed above.
 - Each rule MUST have errorMessage and description.
 - If absolutely no valid relationships exist, return {"crossFieldRules": []}.
 
@@ -705,15 +720,16 @@ Return EXACTLY this JSON:
   ]
 }
 
-VALID operator: "greater_than", "less_than", "gte", "lte", "equals", "not_equals", "date_after", "date_before", "count_equals", "count_gte", "count_lte", "is_before_year"
+VALID operator: "greater_than", "less_than", "gte", "lte", "equals", "not_equals", "date_after", "date_before", "count_equals", "count_gte", "count_lte", "is_before_year", "date_not_future"
 
 RULE EXAMPLES:
 - "Team Size" (number, PRIMARY) + "Team Members" (checkbox, SECONDARY) → Team Size count_equals Team Members
 - "Total Marks" (number) + "Obtained Marks" (number) → Obtained Marks lte Total Marks
 - "Mark" (number, alone) → Mark gte "0" (staticValue)
 - "Start Date" (date) + "End Date" (date) → End Date date_after Start Date
+- "Graduation Date" (date, ambiguous) → Graduation Date date_not_future (secondary null, staticValue null)
 - "Password" (password) + "Confirm Password" (password) → Password equals Confirm Password
-- "Date of Birth" (date) → Date of Birth is_before_year "2010" (staticValue)
+- "Date of Birth" (date, clearly-past) → NO rule (UI restricts automatically)
 - "Age" (number, alone) → Age gte "0" (staticValue)
 
 CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differently, or invent labels.`;
@@ -763,10 +779,13 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
             const opLabel = { greater_than: 'greater than', less_than: 'less than', gte: '≥', lte: '≤',
               equals: 'must equal', not_equals: 'must not equal', date_after: 'must be after',
               date_before: 'must be before', is_before_year: 'must be before year',
+              date_not_future: 'must not be a future date',
               count_equals: 'selection count must equal', count_gte: 'selection count must be ≥',
               count_lte: 'selection count must be ≤' }[r.operator] || r.operator;
             const ref = r.secondaryFieldLabel || r.staticValue;
-            r.errorMessage = `"${r.primaryFieldLabel}" ${opLabel} ${ref}`;
+            r.errorMessage = r.operator === 'date_not_future'
+              ? `"${r.primaryFieldLabel}" must not be a future date`
+              : `"${r.primaryFieldLabel}" ${opLabel} ${ref}`;
           }
           if (!r.description) {
             r.description = `Ensures ${r.primaryFieldLabel} satisfies a type-compatible constraint`;

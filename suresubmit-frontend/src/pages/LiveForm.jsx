@@ -6,6 +6,7 @@ import {
   RadioGroup, FormControl, InputLabel, Select, OutlinedInput, Input
 } from '@mui/material';
 import { Send, CheckCircle, Rule, AttachFile, DeleteOutline } from '@mui/icons-material';
+import { isPastEventDateField, todayISO } from '../utils/dateFields';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
 
@@ -22,6 +23,7 @@ const OPERATORS = {
   count_gte: (a, b) => Number(a) >= (Array.isArray(b) ? b.length : Number(b)),
   count_lte: (a, b) => Number(a) <= (Array.isArray(b) ? b.length : Number(b)),
   is_before_year: (a, b) => new Date(a).getFullYear() < Number(b),
+  date_not_future: (a) => new Date(a) <= new Date(),
 };
 
 const OPERATOR_LABELS = {
@@ -37,6 +39,7 @@ const OPERATOR_LABELS = {
   count_gte: 'count >=',
   count_lte: 'count <=',
   is_before_year: 'year before',
+  date_not_future: 'not in the future',
 };
 
 function validateCrossFieldRules(values, rules) {
@@ -55,6 +58,15 @@ function validateCrossFieldRules(values, rules) {
     if (primaryValue === undefined || primaryValue === null || primaryValue === '') {
       continue;
     }
+
+    if (rule.operator === 'date_not_future') {
+      const evaluator = OPERATORS.date_not_future;
+      if (!evaluator(primaryValue)) {
+        errors[primaryLabel] = rule.errorMessage || `${primaryLabel} cannot be a future date.`;
+      }
+      continue;
+    }
+
     if (compareValue === null || compareValue === undefined || compareValue === '') {
       continue;
     }
@@ -189,16 +201,20 @@ function renderField(field, value, onChange, error, fieldRules) {
         />
       );
 
-    case 'date':
+    case 'date': {
+      const hasNoFutureRule = (fieldRules || []).some(r => r.operator === 'date_not_future' && r.isApproved);
+      const allowFuture = !hasNoFutureRule && !isPastEventDateField(field.label);
       return (
         <TextField
           fullWidth size="small" type="date"
           value={value || ''}
           onChange={(e) => onChange(field.label, e.target.value)}
           InputLabelProps={{ shrink: true }}
+          inputProps={{ max: allowFuture ? undefined : todayISO() }}
           {...commonProps}
         />
       );
+    }
 
     case 'email':
       return (
