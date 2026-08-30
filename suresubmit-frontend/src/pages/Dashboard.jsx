@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Paper, Button, Chip, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton, Alert } from '@mui/material';
-import { Rule, DataObject, Send, OpenInNew, TableChart, Delete, Close, Lock } from '@mui/icons-material';
+import { Rule, DataObject, Send, OpenInNew, TableChart, Delete, Close, Lock, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080';
@@ -13,6 +13,7 @@ const Dashboard = () => {
     const [submissionCounts, setSubmissionCounts] = useState({});
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deletePassword, setDeletePassword] = useState('');
+    const [showDeletePassword, setShowDeletePassword] = useState(false);
     const [deleteError, setDeleteError] = useState('');
     const [deleting, setDeleting] = useState(false);
     const navigate = useNavigate();
@@ -48,12 +49,14 @@ const Dashboard = () => {
     const openDeleteDialog = (form) => {
         setDeleteTarget(form);
         setDeletePassword('');
+        setShowDeletePassword(false);
         setDeleteError('');
     };
 
     const closeDeleteDialog = () => {
         setDeleteTarget(null);
         setDeletePassword('');
+        setShowDeletePassword(false);
         setDeleteError('');
         setDeleting(false);
     };
@@ -231,11 +234,22 @@ const Dashboard = () => {
                   Enter your account password to confirm. A wrong password will cancel the deletion.
                 </Typography>
                 <TextField
-                  type="password" fullWidth size="small"
+                  type={showDeletePassword ? 'text' : 'password'} fullWidth size="small"
                   label="Account Password" value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !deleting) confirmDelete(); }}
                   disabled={deleting}
+                  InputProps={{
+                    endAdornment: (
+                      <IconButton
+                        onClick={() => setShowDeletePassword((prev) => !prev)}
+                        edge="end" size="small"
+                        aria-label={showDeletePassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showDeletePassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    ),
+                  }}
                 />
                 {deleteError && (
                   <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }} onClose={() => setDeleteError('')}>
