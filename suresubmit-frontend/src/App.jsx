@@ -195,7 +195,7 @@ function SideNav({ open, onClose }) {
   ];
 
   const content = (
-    <Box sx={{ p: 1 }}>
+    <Box sx={{ px: 1, pb: 1, pt: 0 }}>
       <List sx={{ py: 0 }}>
         {items.map((item) => {
           const active = isActive(item.path);
