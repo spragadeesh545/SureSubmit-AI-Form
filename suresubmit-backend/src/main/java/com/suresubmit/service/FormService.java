@@ -12,7 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class FormService {
@@ -30,18 +33,45 @@ public class FormService {
         if (request.getDescription() != null) form.setDescription(request.getDescription());
         if (request.getConfirmationMessage() != null) form.setConfirmationMessage(request.getConfirmationMessage());
 
-        if (request.getFields() != null) {
-            for (FieldDTO fd : request.getFields()) {
-                Field field = new Field(fd.getLabel(), fd.getInputType(), fd.getIsRequired() != null && fd.getIsRequired());
-                field.setForm(form);
-                if (fd.getOptions() != null) {
-                    field.getOptions().addAll(fd.getOptions());
-                }
-                form.getFields().add(field);
+        List<FieldDTO> fieldDtos = request.getFields() != null ? request.getFields() : List.of();
+        for (FieldDTO fd : fieldDtos) {
+            Field field = new Field(fd.getLabel(), fd.getInputType(), fd.getIsRequired() != null && fd.getIsRequired());
+            field.setForm(form);
+            if (fd.getOptions() != null) {
+                field.getOptions().addAll(fd.getOptions());
             }
+            form.getFields().add(field);
         }
 
         Form savedForm = formRepository.save(form);
+
+        // Second pass: resolve conditional-visibility source fields by label -> id
+        Map<String, Field> labelToFieldByLabel = new HashMap<>();
+        for (Field f : savedForm.getFields()) {
+            labelToFieldByLabel.put(f.getLabel(), f);
+        }
+        for (int i = 0; i < fieldDtos.size(); i++) {
+            FieldDTO fd = fieldDtos.get(i);
+            if (fd.getVisibleWhenFieldLabel() == null || fd.getVisibleWhenFieldLabel().isBlank()) {
+                continue;
+            }
+            if (i >= savedForm.getFields().size()) break;
+            Field field = savedForm.getFields().get(i);
+            Field source = labelToFieldByLabel.get(fd.getVisibleWhenFieldLabel());
+            if (source == null) {
+                throw new IllegalArgumentException("Visibility condition references an invalid field: " + fd.getVisibleWhenFieldLabel());
+            }
+            if (source.getId().equals(field.getId())) {
+                throw new IllegalArgumentException("A field cannot depend on its own visibility");
+            }
+            field.setVisibleWhenFieldId(source.getId());
+            field.setVisibleWhenOperator(fd.getVisibleWhenOperator());
+            field.setVisibleWhenValue(fd.getVisibleWhenValue());
+        }
+
+        validateNoVisibilityCycles(savedForm);
+
+        formRepository.save(savedForm);
 
         if (request.getCrossFieldRules() != null && !request.getCrossFieldRules().isEmpty()) {
             Map<String, Field> labelToField = new HashMap<>();
@@ -85,9 +115,35 @@ public class FormService {
         return savedForm;
     }
 
+    /**
+     * Rejects circular visibility dependencies (A depends on B depends on A), which would
+     * leave the affected fields permanently hidden or flickering.
+     */
+    private void validateNoVisibilityCycles(Form form) {
+        Map<Long, Long> dependsOn = new HashMap<>();
+        for (Field field : form.getFields()) {
+            if (field.getVisibleWhenFieldId() != null) {
+                dependsOn.put(field.getId(), field.getVisibleWhenFieldId());
+            }
+        }
+
+        for (Field field : form.getFields()) {
+            if (!dependsOn.containsKey(field.getId())) continue;
+            Set<Long> seen = new HashSet<>();
+            Long cursor = field.getId();
+            while (cursor != null) {
+                if (!seen.add(cursor)) {
+                    throw new IllegalArgumentException(
+                        "Circular visibility condition detected involving field: " + field.getLabel()
+                    );
+                }
+                cursor = dependsOn.get(cursor);
+            }
+        }
+    }
+
     @Transactional
-    public Form updateRuleApproval(Long formId, Long ruleId, Boolean approved) {
-        Form form = formRepository.findById(formId)
+    public Form updateRuleApproval(Long formId, Long ruleId, Boolean approved) {        Form form = formRepository.findById(formId)
             .orElseThrow(() -> new RuntimeException("Form not found: " + formId));
 
         for (CrossFieldRule rule : form.getCrossFieldRules()) {

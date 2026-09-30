@@ -90,7 +90,88 @@ function OptionsEditor({ field, onUpdate }) {
   );
 }
 
-function FieldCard({ field, index, onUpdate, onRemove }) {
+const VISIBILITY_OPERATORS = [
+  { value: 'equals', label: 'is equal to' },
+  { value: 'not_equals', label: 'is not equal to' },
+  { value: 'is_checked', label: 'is checked / has any value' },
+  { value: 'is_not_checked', label: 'is not checked / is empty' },
+  { value: 'not_empty', label: 'is not empty' },
+  { value: 'is_empty', label: 'is empty' },
+];
+
+const VISIBILITY_OPERATORS_NO_VALUE = ['is_checked', 'is_not_checked', 'not_empty', 'is_empty'];
+
+function VisibilityEditor({ field, allFields, onUpdate }) {
+  const sourceField = allFields.find((f) => f.id === field.visibleWhenFieldId);
+  const needsValue = !VISIBILITY_OPERATORS_NO_VALUE.includes(field.visibleWhenOperator);
+  const sourceOptions = sourceField?.options || [];
+
+  const setSource = (sourceId) => {
+    if (!sourceId) {
+      onUpdate(field.id, 'visibleWhenFieldId', null);
+      onUpdate(field.id, 'visibleWhenOperator', 'equals');
+      onUpdate(field.id, 'visibleWhenValue', '');
+    } else {
+      onUpdate(field.id, 'visibleWhenFieldId', sourceId);
+      if (!field.visibleWhenOperator) onUpdate(field.id, 'visibleWhenOperator', 'equals');
+    }
+  };
+
+  return (
+    <Box sx={{
+      p: 2, borderRadius: 2, backgroundColor: field.visibleWhenFieldId ? '#f5f3ff' : '#f8fafc',
+      border: '1px dashed', borderColor: field.visibleWhenFieldId ? '#c4b5fd' : '#e2e8f0'
+    }}>
+      <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Conditional visibility
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1.5, mt: 1, flexDirection: { xs: 'column', sm: 'row' }, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Typography variant="body2" sx={{ color: '#475569' }}>Show this field only if</Typography>
+
+        <TextField select size="small" label="Another field" sx={{ minWidth: 180 }}
+          value={field.visibleWhenFieldId || ''}
+          onChange={(e) => setSource(e.target.value === '' ? null : Number(e.target.value))}
+        >
+          <MenuItem value="">Always show</MenuItem>
+          {allFields.filter((f) => f.id !== field.id && f.label).map((f) => (
+            <MenuItem key={f.id} value={f.id}>{f.label}</MenuItem>
+          ))}
+        </TextField>
+
+        {field.visibleWhenFieldId && (
+          <>
+            <TextField select size="small" label="Condition" sx={{ minWidth: 200 }}
+              value={field.visibleWhenOperator || 'equals'}
+              onChange={(e) => onUpdate(field.id, 'visibleWhenOperator', e.target.value)}
+            >
+              {VISIBILITY_OPERATORS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+              ))}
+            </TextField>
+
+            {needsValue && (sourceOptions.length > 0 ? (
+              <TextField select size="small" label="Value" sx={{ minWidth: 140 }}
+                value={field.visibleWhenValue || ''}
+                onChange={(e) => onUpdate(field.id, 'visibleWhenValue', e.target.value)}
+              >
+                {sourceOptions.map((opt, i) => (
+                  <MenuItem key={i} value={opt}>{opt}</MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField size="small" label="Value" sx={{ minWidth: 140 }}
+                value={field.visibleWhenValue || ''}
+                onChange={(e) => onUpdate(field.id, 'visibleWhenValue', e.target.value)}
+              />
+            ))}
+          </>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function FieldCard({ field, index, onUpdate, onRemove, allFields }) {
   return (
     <Paper elevation={0} sx={{
       p: { xs: 2, sm: 3 }, mb: 2, border: '1px solid #e2e8f0',
@@ -129,6 +210,8 @@ function FieldCard({ field, index, onUpdate, onRemove }) {
         {['dropdown', 'radio', 'checkbox'].includes(field.inputType) && (
           <OptionsEditor field={field} onUpdate={onUpdate} />
         )}
+
+        <VisibilityEditor field={field} allFields={allFields} onUpdate={onUpdate} />
       </Box>
       <IconButton color="error" onClick={() => onRemove(field.id)} sx={{ mt: 0.5 }}>
         <DeleteOutline />
@@ -848,12 +931,20 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         themeColor: accentColor,
         description: formDescription,
         confirmationMessage: confirmationMessage,
-        fields: fields.map(f => ({
-          label: f.label,
-          inputType: f.inputType,
-          isRequired: f.isRequired,
-          options: f.options || [],
-        })),
+        fields: fields.map(f => {
+          const sourceField = f.visibleWhenFieldId
+            ? fields.find(x => x.id === f.visibleWhenFieldId)
+            : null;
+          return {
+            label: f.label,
+            inputType: f.inputType,
+            isRequired: f.isRequired,
+            options: f.options || [],
+            visibleWhenFieldLabel: sourceField ? sourceField.label : null,
+            visibleWhenOperator: sourceField ? (f.visibleWhenOperator || 'equals') : null,
+            visibleWhenValue: sourceField ? (f.visibleWhenValue || '') : null,
+          };
+        }),
         crossFieldRules: rules
           .filter(r => r.isApproved
             && fieldLabels.has(r.primaryFieldLabel)
@@ -1168,7 +1259,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         </Typography>
         {fields.map((field, index) => (
           <FieldCard key={field.id} field={field} index={index}
-            onUpdate={updateField} onRemove={removeField} />
+            onUpdate={updateField} onRemove={removeField} allFields={fields} />
         ))}
 
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>

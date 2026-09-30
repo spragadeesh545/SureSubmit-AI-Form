@@ -9,6 +9,7 @@ import com.suresubmit.entity.Form;
 import com.suresubmit.entity.FormSubmission;
 import com.suresubmit.repository.FormRepository;
 import com.suresubmit.repository.FormSubmissionRepository;
+import com.suresubmit.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,9 @@ public class FormSubmissionController {
 
     @Autowired
     private FormRepository formRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -52,6 +56,9 @@ public class FormSubmissionController {
             Map<String, Object> values = objectMapper.readValue(
                 request.getPayloadJson(), new TypeReference<Map<String, Object>>() {}
             );
+            values = stripHiddenFieldValues(form, values);
+            String sanitizedPayload = objectMapper.writeValueAsString(values);
+
             for (CrossFieldRule rule : form.getCrossFieldRules()) {
                 if (Boolean.TRUE.equals(rule.getIsApproved()) && !isValid(rule, values)) {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -60,9 +67,16 @@ public class FormSubmissionController {
 
             FormSubmission submission = new FormSubmission();
             submission.setForm(form);
-            submission.setPayloadJson(request.getPayloadJson());
+            submission.setPayloadJson(sanitizedPayload);
 
             FormSubmission saved = submissionRepository.save(submission);
+
+            try {
+                notificationService.sendNewSubmissionNotification(form, saved.getPayloadJson());
+            } catch (Exception notifyEx) {
+                notifyEx.printStackTrace();
+            }
+
             return new ResponseEntity<>(saved, HttpStatus.CREATED);
         } catch (Exception e) {
             e.printStackTrace();
@@ -110,5 +124,54 @@ public class FormSubmissionController {
 
     private boolean isBlank(Object value) {
         return value == null || (value instanceof String text && text.isBlank());
+    }
+
+    /**
+     * Removes answers belonging to fields that conditional logic currently hides, so a
+     * crafted request cannot store (and later export) values for invisible fields.
+     */
+    private Map<String, Object> stripHiddenFieldValues(Form form, Map<String, Object> values) {
+        Map<String, Object> sanitized = new java.util.LinkedHashMap<>(values);
+        for (Field field : form.getFields()) {
+            if (field.getVisibleWhenFieldId() == null) continue;
+            if (!isFieldVisible(form, field, sanitized)) {
+                sanitized.remove(field.getLabel());
+            }
+        }
+        return sanitized;
+    }
+
+    private boolean isFieldVisible(Form form, Field field, Map<String, Object> values) {
+        Field source = null;
+        for (Field candidate : form.getFields()) {
+            if (field.getVisibleWhenFieldId().equals(candidate.getId())) {
+                source = candidate;
+                break;
+            }
+        }
+        if (source == null) return true;
+
+        Object actual = values.get(source.getLabel());
+        String expected = field.getVisibleWhenValue();
+        String operator = field.getVisibleWhenOperator() == null ? "equals" : field.getVisibleWhenOperator();
+
+        boolean hasValue;
+        if (actual instanceof List<?> list) {
+            hasValue = !list.isEmpty();
+        } else {
+            hasValue = actual != null && !String.valueOf(actual).isBlank();
+        }
+
+        return switch (operator) {
+            case "equals" -> actual instanceof List<?> list
+                ? list.stream().anyMatch(item -> String.valueOf(item).trim().equals(String.valueOf(expected).trim()))
+                : String.valueOf(actual == null ? "" : actual).trim().equals(String.valueOf(expected == null ? "" : expected).trim());
+            case "not_equals" -> actual instanceof List<?> list
+                ? list.stream().noneMatch(item -> String.valueOf(item).trim().equals(String.valueOf(expected).trim()))
+                : !String.valueOf(actual == null ? "" : actual).trim().equals(String.valueOf(expected == null ? "" : expected).trim());
+            case "is_checked", "not_empty" -> hasValue;
+            case "is_not_checked", "is_empty" -> !hasValue;
+            default -> true;
+        };
     }
 }

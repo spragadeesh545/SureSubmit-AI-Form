@@ -33,7 +33,11 @@ CREATE TABLE IF NOT EXISTS fields (
     label VARCHAR(255) NOT NULL,
     input_type VARCHAR(50) NOT NULL,
     is_required BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE
+    visible_when_field_id BIGINT,
+    visible_when_operator VARCHAR(50),
+    visible_when_value VARCHAR(255),
+    FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE,
+    FOREIGN KEY (visible_when_field_id) REFERENCES fields(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS field_options (
@@ -65,3 +69,7 @@ CREATE TABLE IF NOT EXISTS form_submissions (
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE
 );
+
+-- Older installs were created by Hibernate ddl-auto=update, which added submitted_at
+-- without a default, so historical rows can be NULL. Backfill them once.
+UPDATE form_submissions SET submitted_at = NOW() WHERE submitted_at IS NULL;

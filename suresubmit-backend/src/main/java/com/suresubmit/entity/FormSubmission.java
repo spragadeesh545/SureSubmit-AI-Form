@@ -19,7 +19,7 @@ public class FormSubmission {
     @Column(name = "payload_json", nullable = false, columnDefinition = "TEXT")
     private String payloadJson;
 
-    @Column(name = "submitted_at", insertable = false, updatable = false)
+    @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
     public FormSubmission() {}

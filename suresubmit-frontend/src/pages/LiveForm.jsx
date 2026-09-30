@@ -92,6 +92,39 @@ function validateCrossFieldRules(values, rules) {
   return errors;
 }
 
+function isFieldVisible(field, fields, values) {
+  if (!field || !field.visibleWhenFieldId) return true;
+
+  const source = (fields || []).find((f) => f.id === field.visibleWhenFieldId);
+  if (!source) return true;
+
+  const actual = values[source.label];
+  const expected = field.visibleWhenValue;
+  const op = field.visibleWhenOperator || 'equals';
+
+  const actualArr = Array.isArray(actual) ? actual : [];
+  const hasValue = Array.isArray(actual) ? actual.length > 0 : actual !== undefined && actual !== null && actual !== '';
+
+  switch (op) {
+    case 'equals':
+      if (Array.isArray(actual)) return actualArr.map(String).includes(String(expected));
+      return String(actual ?? '').trim() === String(expected ?? '').trim();
+    case 'not_equals':
+      if (Array.isArray(actual)) return !actualArr.map(String).includes(String(expected));
+      return String(actual ?? '').trim() !== String(expected ?? '').trim();
+    case 'is_checked':
+      return hasValue;
+    case 'is_not_checked':
+      return !hasValue;
+    case 'not_empty':
+      return hasValue;
+    case 'is_empty':
+      return !hasValue;
+    default:
+      return true;
+  }
+}
+
 function renderField(field, value, onChange, error, fieldRules) {
   const commonProps = {
     error: !!error,
@@ -402,6 +435,7 @@ const LiveForm = () => {
     }
 
     for (const field of (form.fields || [])) {
+      if (!isFieldVisible(field, form.fields, values)) continue;
       const v = values[field.label];
       const isEmpty = field.inputType === 'checkbox' ? !Array.isArray(v) || v.length === 0 : !v || String(v).trim() === '';
       if (field.isRequired && isEmpty) {
@@ -418,10 +452,20 @@ const LiveForm = () => {
     setSubmitting(true);
 
     try {
-      const submissionPayload = {
-        formId: form.id,
-        payloadJson: JSON.stringify(values),
-      };
+    // Only submit values for fields that are currently visible, so answers to
+    // fields hidden by conditional logic never get stored or exported.
+    const sanitizedValues = {};
+    for (const field of (form.fields || [])) {
+      if (!isFieldVisible(field, form.fields, values)) continue;
+      if (Object.prototype.hasOwnProperty.call(values, field.label)) {
+        sanitizedValues[field.label] = values[field.label];
+      }
+    }
+
+    const submissionPayload = {
+      formId: form.id,
+      payloadJson: JSON.stringify(sanitizedValues),
+    };
 
       const response = await fetch(`${API_BASE}/api/submissions`, {
         method: 'POST',
@@ -551,6 +595,7 @@ const LiveForm = () => {
       {/* FORM FIELDS */}
       <form onSubmit={handleSubmit}>
         {(form.fields || []).map((field, index) => {
+          if (!isFieldVisible(field, form.fields, values)) return null;
           const fieldError = errors[field.label];
           const fieldRules = activeRules.filter(r => r.primaryField?.label === field.label);
 
@@ -636,6 +681,7 @@ const LiveForm = () => {
             <Table size="small">
               <TableBody>
                 {(form.fields || []).map((field, index) => {
+                  if (!isFieldVisible(field, form.fields, values)) return null;
                   const val = values[field.label];
                   const display = field.inputType === 'checkbox'
                     ? (Array.isArray(val) && val.length > 0 ? val.join(', ') : '—')

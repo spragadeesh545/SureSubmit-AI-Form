@@ -26,6 +26,16 @@ public class Field {
     @Column(name = "is_required")
     private Boolean isRequired = false;
 
+    // Conditional visibility: show this field only when another field matches a condition
+    @Column(name = "visible_when_field_id")
+    private Long visibleWhenFieldId;
+
+    @Column(name = "visible_when_operator")
+    private String visibleWhenOperator;
+
+    @Column(name = "visible_when_value")
+    private String visibleWhenValue;
+
     @ElementCollection
     @CollectionTable(name = "field_options", joinColumns = @JoinColumn(name = "field_id"))
     @Column(name = "option_value")
@@ -51,4 +61,10 @@ public class Field {
     public void setIsRequired(Boolean isRequired) { this.isRequired = isRequired; }
     public List<String> getOptions() { return options; }
     public void setOptions(List<String> options) { this.options = options; }
+    public Long getVisibleWhenFieldId() { return visibleWhenFieldId; }
+    public void setVisibleWhenFieldId(Long visibleWhenFieldId) { this.visibleWhenFieldId = visibleWhenFieldId; }
+    public String getVisibleWhenOperator() { return visibleWhenOperator; }
+    public void setVisibleWhenOperator(String visibleWhenOperator) { this.visibleWhenOperator = visibleWhenOperator; }
+    public String getVisibleWhenValue() { return visibleWhenValue; }
+    public void setVisibleWhenValue(String visibleWhenValue) { this.visibleWhenValue = visibleWhenValue; }
 }

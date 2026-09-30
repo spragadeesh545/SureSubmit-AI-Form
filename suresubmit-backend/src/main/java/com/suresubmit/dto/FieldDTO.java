@@ -7,6 +7,9 @@ public class FieldDTO {
     private String inputType;
     private Boolean isRequired;
     private List<String> options;
+    private String visibleWhenFieldLabel;
+    private String visibleWhenOperator;
+    private String visibleWhenValue;
 
     public FieldDTO() {}
 
@@ -24,4 +27,10 @@ public class FieldDTO {
     public void setIsRequired(Boolean isRequired) { this.isRequired = isRequired; }
     public List<String> getOptions() { return options; }
     public void setOptions(List<String> options) { this.options = options; }
+    public String getVisibleWhenFieldLabel() { return visibleWhenFieldLabel; }
+    public void setVisibleWhenFieldLabel(String visibleWhenFieldLabel) { this.visibleWhenFieldLabel = visibleWhenFieldLabel; }
+    public String getVisibleWhenOperator() { return visibleWhenOperator; }
+    public void setVisibleWhenOperator(String visibleWhenOperator) { this.visibleWhenOperator = visibleWhenOperator; }
+    public String getVisibleWhenValue() { return visibleWhenValue; }
+    public void setVisibleWhenValue(String visibleWhenValue) { this.visibleWhenValue = visibleWhenValue; }
 }
