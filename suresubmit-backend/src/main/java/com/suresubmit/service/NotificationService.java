@@ -139,7 +139,7 @@ public class NotificationService {
                 .header("accept", "application/json")
                 .body(payload)
                 .retrieve()
-                .bodyTo(String.class);
+                .body(String.class);
             System.out.println("Mail sent via API to " + to + " -> " + response);
         } catch (Exception e) {
             // Delivery problems are logged, never thrown at the caller.
