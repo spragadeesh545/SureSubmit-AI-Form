@@ -2,10 +2,13 @@ package com.suresubmit.controller;
 
 import com.suresubmit.dto.AuthRequest;
 import com.suresubmit.dto.AuthResponse;
+import com.suresubmit.dto.ForgotPasswordRequest;
+import com.suresubmit.dto.ResetPasswordRequest;
 import com.suresubmit.entity.User;
 import com.suresubmit.entity.UserSession;
 import com.suresubmit.repository.UserRepository;
 import com.suresubmit.repository.UserSessionRepository;
+import com.suresubmit.service.PasswordResetService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +29,9 @@ public class AuthController {
 
     @Autowired
     private UserSessionRepository sessionRepository;
+
+    @Autowired
+    private PasswordResetService passwordResetService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -119,5 +125,36 @@ public class AuthController {
             sessionRepository.findByToken(token).ifPresent(sessionRepository::delete);
         }
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        try {
+            passwordResetService.createResetToken(request.getEmail());
+            // Always the same response, so the endpoint cannot be used to discover
+            // which email addresses have accounts.
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            PasswordResetService.ResetResult result =
+                passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+
+            return switch (result) {
+                case SUCCESS -> ResponseEntity.ok().build();
+                case WEAK_PASSWORD -> ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+                case EXPIRED_TOKEN -> ResponseEntity.status(HttpStatus.GONE).build();
+                case INVALID_TOKEN -> ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            };
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

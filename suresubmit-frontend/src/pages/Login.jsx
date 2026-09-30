@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Box, Paper, TextField, Button, Typography, Alert, Divider,
   InputAdornment, IconButton
@@ -102,6 +102,15 @@ const Login = () => {
             }}>
             {submitting ? 'Please wait...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
           </Button>
+
+          {mode === 'login' && (
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
+              <Button component={Link} to="/forgot-password" size="small"
+                sx={{ textTransform: 'none', color: '#6366f1', fontWeight: 700, p: 0 }}>
+                Forgot password?
+              </Button>
+            </Box>
+          )}
         </form>
 
         <Divider sx={{ my: 3 }} />

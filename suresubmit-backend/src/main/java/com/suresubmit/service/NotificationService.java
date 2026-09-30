@@ -64,6 +64,38 @@ public class NotificationService {
         }
     }
 
+    public void sendPasswordResetEmail(String toEmail, String resetLink) {
+        if (!enabled || mailSender == null || toEmail == null || toEmail.isBlank()) {
+            // Keeps the flow testable locally without SMTP credentials configured.
+            System.out.println("[mail disabled] password reset link for " + toEmail + ": " + resetLink);
+            return;
+        }
+
+        String body = """
+            Hi,
+
+            We received a request to reset the password for your SureSubmit account.
+
+            Use the link below to choose a new password. It expires in 60 minutes.
+
+            %s
+
+            If you did not request this, you can safely ignore this email and your
+            current password will keep working.
+            """.formatted(resetLink);
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromAddress);
+            message.setTo(toEmail);
+            message.setSubject("Reset your SureSubmit password");
+            message.setText(body);
+            mailSender.send(message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private String prettyPrint(String payloadJson) {
         if (payloadJson == null || payloadJson.isBlank()) {
             return "(empty)";

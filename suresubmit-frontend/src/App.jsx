@@ -6,6 +6,8 @@ import FormBuilder from './pages/FormBuilder';
 import Dashboard from './pages/Dashboard'; 
 import LiveForm from './pages/LiveForm';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Responses from './pages/Responses';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -281,6 +283,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/form/:id" element={<LiveForm />} />
       <Route path="/build" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
