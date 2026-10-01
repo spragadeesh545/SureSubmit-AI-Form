@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, TextField, MenuItem, Paper, IconButton,
@@ -48,7 +48,7 @@ const OPERATORS = [
   { value: 'date_not_future', label: 'Must not be a future date (≤ today)' },
 ];
 
-function OptionsEditor({ field, onUpdate }) {
+function OptionsEditor({ field, onUpdate, accentColor }) {
   const [optionText, setOptionText] = useState('');
 
   const addOption = () => {
@@ -83,7 +83,7 @@ function OptionsEditor({ field, onUpdate }) {
         <TextField size="small" variant="outlined" fullWidth placeholder="Add option"
           value={optionText} onChange={(e) => setOptionText(e.target.value)} sx={{ maxWidth: 300 }} />
         <Button size="small" onClick={addOption} startIcon={<Add />}
-          sx={{ textTransform: 'none', color: '#6366f1', fontWeight: 600 }}>
+          sx={{ textTransform: 'none', color: accentColor, fontWeight: 600 }}>
           Add
         </Button>
       </Box>
@@ -102,7 +102,7 @@ const VISIBILITY_OPERATORS = [
 
 const VISIBILITY_OPERATORS_NO_VALUE = ['is_checked', 'is_not_checked', 'not_empty', 'is_empty'];
 
-function VisibilityEditor({ field, allFields, onUpdate }) {
+function VisibilityEditor({ field, allFields, onUpdate, accentColor }) {
   const sourceField = allFields.find((f) => f.id === field.visibleWhenFieldId);
   const needsValue = !VISIBILITY_OPERATORS_NO_VALUE.includes(field.visibleWhenOperator);
   const sourceOptions = sourceField?.options || [];
@@ -120,8 +120,8 @@ function VisibilityEditor({ field, allFields, onUpdate }) {
 
   return (
     <Box sx={{
-      p: 2, borderRadius: 2, backgroundColor: field.visibleWhenFieldId ? '#f5f3ff' : '#f8fafc',
-      border: '1px dashed', borderColor: field.visibleWhenFieldId ? '#c4b5fd' : '#e2e8f0'
+      p: 2, borderRadius: 2, backgroundColor: field.visibleWhenFieldId ? `${accentColor}14` : '#f8fafc',
+      border: '1px dashed', borderColor: field.visibleWhenFieldId ? `${accentColor}66` : '#e2e8f0'
     }}>
       <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         Conditional visibility
@@ -172,7 +172,7 @@ function VisibilityEditor({ field, allFields, onUpdate }) {
   );
 }
 
-function FieldCard({ field, index, onUpdate, onRemove, allFields }) {
+function FieldCard({ field, index, onUpdate, onRemove, allFields, accentColor }) {
   return (
     <Paper elevation={0} sx={{
       p: { xs: 2, sm: 3 }, mb: 2, border: '1px solid #e2e8f0',
@@ -209,10 +209,10 @@ function FieldCard({ field, index, onUpdate, onRemove, allFields }) {
         </Box>
 
         {['dropdown', 'radio', 'checkbox'].includes(field.inputType) && (
-          <OptionsEditor field={field} onUpdate={onUpdate} />
+          <OptionsEditor field={field} onUpdate={onUpdate} accentColor={accentColor} />
         )}
 
-        <VisibilityEditor field={field} allFields={allFields} onUpdate={onUpdate} />
+        <VisibilityEditor field={field} allFields={allFields} onUpdate={onUpdate} accentColor={accentColor} />
       </Box>
       <IconButton color="error" onClick={() => onRemove(field.id)} sx={{ mt: 0.5 }}>
         <DeleteOutline />
@@ -221,7 +221,7 @@ function FieldCard({ field, index, onUpdate, onRemove, allFields }) {
   );
 }
 
-function RuleCard({ rule, index, onApprove, onReject }) {
+function RuleCard({ rule, index, onApprove, onReject, accentColor }) {
   const primaryLabel = rule.primaryFieldLabel;
   const secondaryLabel = rule.secondaryFieldLabel;
   const operatorLabel = OPERATORS.find(o => o.value === rule.operator)?.label || rule.operator;
@@ -236,7 +236,7 @@ function RuleCard({ rule, index, onApprove, onReject }) {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: { xs: 'column', sm: 'row' } }}>
         <Box sx={{ flex: 1, width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-            <Rule sx={{ color: '#6366f1', fontSize: 20 }} />
+            <Rule sx={{ color: accentColor, fontSize: 20 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Rule #{index + 1}
             </Typography>
@@ -281,7 +281,7 @@ function RuleCard({ rule, index, onApprove, onReject }) {
   );
 }
 
-function ShareDialog({ open, onClose, shareableLink, formTitle }) {
+function ShareDialog({ open, onClose, shareableLink, formTitle, accentColor }) {
   const [shareTab, setShareTab] = useState(0);
   const [email, setEmail] = useState('');
   const [copied, setCopied] = useState(false);
@@ -302,7 +302,7 @@ function ShareDialog({ open, onClose, shareableLink, formTitle }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-        <Share sx={{ color: '#6366f1' }} />
+        <Share sx={{ color: accentColor }} />
         Share "{formTitle}"
       </DialogTitle>
       <DialogContent>
@@ -322,7 +322,7 @@ function ShareDialog({ open, onClose, shareableLink, formTitle }) {
                 sx={{ backgroundColor: '#f8fafc' }} />
               <Button variant="contained" onClick={handleCopyLink} startIcon={copied ? <CheckCircle /> : <ContentCopy />}
                 sx={{ minWidth: { xs: '100%', sm: 100 }, textTransform: 'none', fontWeight: 600,
-                  backgroundColor: copied ? '#10b981' : '#6366f1' }}>
+                  backgroundColor: copied ? '#10b981' : accentColor }}>
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             </Box>
@@ -338,7 +338,7 @@ function ShareDialog({ open, onClose, shareableLink, formTitle }) {
               value={email} onChange={(e) => setEmail(e.target.value)} sx={{ mb: 2 }} />
             <Button variant="contained" startIcon={<Email />} disabled={!email}
               onClick={() => { window.open(`mailto:${email}?subject=${encodeURIComponent(formTitle)}&body=${encodeURIComponent(`Please fill out this form:\n\n${shareableLink}`)}`); }}
-              sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: '#6366f1' }}>
+              sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: accentColor }}>
               Open Email Client
             </Button>
           </Box>
@@ -353,7 +353,7 @@ function ShareDialog({ open, onClose, shareableLink, formTitle }) {
               value={`<iframe src="${shareableLink}" width="100%" height="800" frameborder="0"></iframe>`}
               sx={{ backgroundColor: '#f8fafc', fontFamily: 'monospace', mb: 2 }} />
             <Button variant="contained" onClick={handleCopyEmbed} startIcon={copied ? <CheckCircle /> : <ContentCopy />}
-              sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: copied ? '#10b981' : '#6366f1' }}>
+              sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: copied ? '#10b981' : accentColor }}>
               {copied ? 'Copied!' : 'Copy Embed Code'}
             </Button>
           </Box>
@@ -372,7 +372,7 @@ function ThemeDialog({ open, onClose, accentColor, onColorChange }) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-        <Palette sx={{ color: '#6366f1' }} />
+        <Palette sx={{ color: accentColor }} />
         Theme
       </DialogTitle>
       <DialogContent>
@@ -390,7 +390,7 @@ function ThemeDialog({ open, onClose, accentColor, onColorChange }) {
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: '#6366f1' }}>
+        <Button onClick={onClose} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: accentColor }}>
           Done
         </Button>
       </DialogActions>
@@ -405,7 +405,7 @@ function SettingsDialog({ open, onClose, formTitle, formDescription, confirmatio
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-        <Settings sx={{ color: '#6366f1' }} />
+        <Settings sx={{ color: accentColor }} />
         Form Settings
       </DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -432,7 +432,7 @@ function SettingsDialog({ open, onClose, formTitle, formDescription, confirmatio
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: '#6366f1' }}>
+        <Button onClick={onClose} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: accentColor }}>
           Done
         </Button>
       </DialogActions>
@@ -445,15 +445,16 @@ function PreviewDialog({ open, onClose, formTitle, formDescription, fields, acce
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-          <Visibility sx={{ color: '#6366f1' }} />
+          <Visibility sx={{ color: accentColor }} />
           Form Preview
         </Box>
         <IconButton onClick={onClose} size="small"><Close /></IconButton>
       </DialogTitle>
       <DialogContent dividers sx={{ backgroundColor: '#f8fafc' }}>
         <Paper elevation={0} sx={{
-          p: 4, mb: 3, borderTop: `8px solid ${accentColor}`, borderRadius: 2,
-          border: '1px solid #e2e8f0'
+          p: 4, mb: 3, borderRadius: 2,
+          border: '1px solid #e2e8f0',
+          borderTop: `8px solid ${accentColor}`
         }}>
           <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>{formTitle}</Typography>
           {formDescription && (
@@ -502,13 +503,13 @@ function PreviewDialog({ open, onClose, formTitle, formDescription, fields, acce
   );
 }
 
-function AccessControlDialog({ open, onClose }) {
+function AccessControlDialog({ open, onClose, accentColor }) {
   const [accessLevel, setAccessLevel] = useState('anyone');
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
-        <PersonAdd sx={{ color: '#6366f1' }} />
+        <PersonAdd sx={{ color: accentColor }} />
         Who has access
       </DialogTitle>
       <DialogContent>
@@ -557,39 +558,44 @@ export default function FormBuilder() {
   const [accentColor, setAccentColor] = useState('#6366f1');
   const [formDescription, setFormDescription] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('Your response has been recorded.');
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const historyIndexRef = useRef(-1);
-  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
+  // Seeded with an initial snapshot so the very first change is undoable.
+  const [hist, setHist] = useState(() => ({ past: [{ fields: [], rules: [], formTitle: 'Untitled Form' }], index: 0 }));
 
   const pushHistory = (newFields, newRules = rules, newTitle = formTitle) => {
     const snapshot = { fields: newFields, rules: newRules, formTitle: newTitle };
-    setHistory(h => {
-      const idx = Math.min(historyIndexRef.current, h.length - 1);
-      return [...h.slice(0, idx + 1), snapshot];
-    });
-    setHistoryIndex(i => i + 1);
+    // single atomic update: drop any redo future, then append. index stays consistent by construction.
+    setHist(h => ({ past: [...h.past.slice(0, h.index + 1), snapshot], index: h.index + 1 }));
   };
 
   const undo = () => {
-    if (historyIndex <= 0) return;
-    const idx = historyIndex - 1;
-    setHistoryIndex(idx);
-    const snap = history[idx];
+    // read both the target snapshot and the guard from the same functional update
+    let snap = null;
+    setHist(h => {
+      if (h.index <= 0) return h;
+      snap = h.past[h.index - 1];
+      return { past: h.past, index: h.index - 1 };
+    });
+    if (!snap) return;
     setFields(snap.fields);
     setRules(snap.rules);
     setFormTitle(snap.formTitle);
   };
 
   const redo = () => {
-    if (historyIndex >= history.length - 1) return;
-    const idx = historyIndex + 1;
-    setHistoryIndex(idx);
-    const snap = history[idx];
+    let snap = null;
+    setHist(h => {
+      if (h.index >= h.past.length - 1) return h;
+      snap = h.past[h.index + 1];
+      return { past: h.past, index: h.index + 1 };
+    });
+    if (!snap) return;
     setFields(snap.fields);
     setRules(snap.rules);
     setFormTitle(snap.formTitle);
   };
+
+  const canUndo = hist.past.length > 0 && hist.index > 0;
+  const canRedo = hist.index < hist.past.length - 1;
 
   const getLiveLink = () => publishedFormId ? `${window.location.origin}/form/${publishedFormId}` : '';
 
@@ -606,6 +612,12 @@ export default function FormBuilder() {
       if (typeof d.formDescription === 'string') setFormDescription(d.formDescription);
       if (typeof d.confirmationMessage === 'string') setConfirmationMessage(d.confirmationMessage);
       if (typeof d.accentColor === 'string') setAccentColor(d.accentColor);
+      if (d.publishedFormId) setPublishedFormId(d.publishedFormId);
+      // Reseed history from the restored draft so Undo works after a refresh.
+      setHist({
+        past: [{ fields: d.fields || [], rules: d.rules || [], formTitle: d.formTitle || 'Untitled Form' }],
+        index: 0,
+      });
     } catch { /* ignore malformed draft */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]);
@@ -616,12 +628,12 @@ export default function FormBuilder() {
     const t = setTimeout(() => {
       try {
         localStorage.setItem(draftKey, JSON.stringify({
-          fields, rules, formTitle, formDescription, confirmationMessage, accentColor,
+          fields, rules, formTitle, formDescription, confirmationMessage, accentColor, publishedFormId,
         }));
       } catch { /* quota or unavailable */ }
     }, 400);
     return () => clearTimeout(t);
-  }, [draftKey, fields, rules, formTitle, formDescription, confirmationMessage, accentColor]);
+  }, [draftKey, fields, rules, formTitle, formDescription, confirmationMessage, accentColor, publishedFormId]);
 
   const callGroq = async (apiKey, messages) => {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1110,7 +1122,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, maxWidth: '100%' }}>
           <Typography variant="h6"
             onClick={() => navigate('/')}
-            sx={{ fontWeight: 800, color: '#6366f1', letterSpacing: '-0.5px', cursor: 'pointer' }}>
+            sx={{ fontWeight: 800, color: accentColor, letterSpacing: '-0.5px', cursor: 'pointer' }}>
             SureSubmit
           </Typography>
           <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0, sm: 1 }, display: { xs: 'none', sm: 'block' } }} />
@@ -1136,15 +1148,15 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
 
           <Tooltip title="Undo">
             <span>
-              <IconButton onClick={undo} disabled={historyIndex <= 0}>
-                <Undo sx={{ color: historyIndex > 0 ? '#64748b' : '#cbd5e1' }} />
+              <IconButton onClick={undo} disabled={!canUndo}>
+                <Undo sx={{ color: canUndo ? '#64748b' : '#cbd5e1' }} />
               </IconButton>
             </span>
           </Tooltip>
           <Tooltip title="Redo">
             <span>
-              <IconButton onClick={redo} disabled={historyIndex >= history.length - 1}>
-                <Redo sx={{ color: historyIndex < history.length - 1 ? '#64748b' : '#cbd5e1' }} />
+              <IconButton onClick={redo} disabled={!canRedo}>
+                <Redo sx={{ color: canRedo ? '#64748b' : '#cbd5e1' }} />
               </IconButton>
             </span>
           </Tooltip>
@@ -1163,7 +1175,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
             <span>
               <IconButton onClick={() => publishedFormId ? setShareOpen(true) : null}
                 disabled={!publishedFormId}
-                sx={{ color: publishedFormId ? '#6366f1' : '#cbd5e1' }}>
+                sx={{ color: publishedFormId ? accentColor : '#cbd5e1' }}>
                 <Send />
               </IconButton>
             </span>
@@ -1173,10 +1185,10 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
           <Button
             variant="contained" onClick={handlePublish} disabled={isPublishing}
             sx={{
-              backgroundColor: '#6366f1', color: '#fff', fontWeight: 700, ml: { xs: 0.5, sm: 1 }, px: { xs: 1.5, sm: 3 },
+              backgroundColor: accentColor, color: '#fff', fontWeight: 700, ml: { xs: 0.5, sm: 1 }, px: { xs: 1.5, sm: 3 },
               borderRadius: 2, textTransform: 'none', whiteSpace: 'nowrap',
-              boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)',
-              '&:hover': { backgroundColor: '#4f46e5' }
+              boxShadow: `0 2px 4px ${accentColor}33`,
+              '&:hover': { backgroundColor: accentColor, filter: 'brightness(0.9)' }
             }}
           >
             {isPublishing ? '...' : 'Publish'}
@@ -1199,11 +1211,11 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
       </Snackbar>
 
       {/* SHARE DIALOG */}
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)}
+      <ShareDialog accentColor={accentColor} open={shareOpen} onClose={() => setShareOpen(false)}
         shareableLink={getLiveLink()} formTitle={formTitle} />
 
       {/* ACCESS CONTROL DIALOG */}
-      <AccessControlDialog open={accessOpen} onClose={() => setAccessOpen(false)} />
+      <AccessControlDialog accentColor={accentColor} open={accessOpen} onClose={() => setAccessOpen(false)} />
 
       {/* SETTINGS DIALOG */}
       <SettingsDialog
@@ -1239,10 +1251,10 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         <Paper elevation={0} sx={{
           p: 4, mb: 4,
           background: 'linear-gradient(135deg, #f8fafc 0%, #ede9fe 100%)',
-          border: '1px solid #c4b5fd', borderRadius: 3
+          border: `1px solid ${accentColor}66`, borderRadius: 3
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <SmartToy sx={{ color: '#6366f1', fontSize: 28 }} />
+            <SmartToy sx={{ color: accentColor, fontSize: 28 }} />
             <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
               AI Form Architect
             </Typography>
@@ -1255,7 +1267,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
               value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} disabled={isGenerating}
               sx={{ backgroundColor: '#fff' }} />
             <Button variant="contained" onClick={handleAIGeneration} disabled={isGenerating || !aiPrompt}
-              sx={{ backgroundColor: '#6366f1', color: '#fff', px: 4, '&:hover': { backgroundColor: '#4f46e5' }, textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
+              sx={{ backgroundColor: accentColor, color: '#fff', px: 4, '&:hover': { backgroundColor: accentColor, filter: 'brightness(0.9)' }, textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
               {isGenerating ? 'Generating...' : 'Generate'}
             </Button>
           </Box>
@@ -1265,7 +1277,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         {/* FORM TITLE */}
         <Paper elevation={0} sx={{
           p: 4, mb: 4, border: '1px solid #e2e8f0',
-          borderTop: '8px solid #6366f1', borderRadius: 2
+          borderTop: `8px solid ${accentColor}`, borderRadius: 2
         }}>
           <TextField fullWidth variant="standard" value={formTitle}
             onChange={(e) => setFormTitle(e.target.value)} placeholder="Form Title"
@@ -1279,11 +1291,11 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         {/* HITL: RULES APPROVAL */}
         {approvalStep && rules.length > 0 && (
           <Paper elevation={0} sx={{
-            p: 4, mb: 4, border: '2px solid #6366f1', borderRadius: 3,
-            background: 'linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%)'
+            p: 4, mb: 4, border: `2px solid ${accentColor}`, borderRadius: 3,
+            background: `linear-gradient(135deg, #ffffff 0%, ${accentColor}14 100%)`
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <AutoAwesome sx={{ color: '#6366f1' }} />
+              <AutoAwesome sx={{ color: accentColor }} />
               <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a' }}>
                 AI-Suggested Validation Rules
               </Typography>
@@ -1294,7 +1306,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
             </Typography>
 
             {rules.map((rule, index) => (
-              <RuleCard key={rule.id} rule={rule} index={index}
+              <RuleCard key={rule.id} rule={rule} index={index} accentColor={accentColor}
                 onApprove={handleApproveRule} onReject={handleRejectRule} />
             ))}
 
@@ -1303,7 +1315,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
                 {approvedRulesCount} approved / {rules.length} total rules
               </Alert>
               <Button variant="contained" onClick={() => setApprovalStep(false)}
-                sx={{ ml: { xs: 0, sm: 2 }, backgroundColor: '#6366f1', textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
+                sx={{ ml: { xs: 0, sm: 2 }, backgroundColor: accentColor, textTransform: 'none', fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}>
                 Done Reviewing
               </Button>
             </Box>
@@ -1318,13 +1330,13 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
             flexDirection: { xs: 'column', sm: 'row' }, gap: 1
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Rule sx={{ color: '#6366f1' }} />
+              <Rule sx={{ color: accentColor }} />
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
                 {approvedRulesCount} validation rule{approvedRulesCount !== 1 ? 's' : ''} active
               </Typography>
             </Box>
             <Button size="small" onClick={() => setApprovalStep(true)}
-              sx={{ textTransform: 'none', color: '#6366f1', fontWeight: 600 }}>
+              sx={{ textTransform: 'none', color: accentColor, fontWeight: 600 }}>
               Review Rules
             </Button>
           </Paper>
@@ -1336,7 +1348,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         </Typography>
         {fields.map((field, index) => (
           <FieldCard key={field.id} field={field} index={index}
-            onUpdate={updateField} onRemove={removeField} allFields={fields} />
+            onUpdate={updateField} onRemove={removeField} allFields={fields} accentColor={accentColor} />
         ))}
 
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
