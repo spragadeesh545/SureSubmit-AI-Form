@@ -128,7 +128,7 @@ function VisibilityEditor({ field, allFields, onUpdate }) {
       <Box sx={{ display: 'flex', gap: 1.5, mt: 1, flexDirection: { xs: 'column', sm: 'row' }, flexWrap: 'wrap', alignItems: 'center' }}>
         <Typography variant="body2" sx={{ color: '#475569' }}>Show this field only if</Typography>
 
-        <TextField select size="small" label="Another field" sx={{ minWidth: 180 }}
+        <TextField select size="small" label="Another field" sx={{ minWidth: { xs: '100%', sm: 180 } }}
           value={field.visibleWhenFieldId || ''}
           onChange={(e) => setSource(e.target.value === '' ? null : Number(e.target.value))}
         >
@@ -140,7 +140,7 @@ function VisibilityEditor({ field, allFields, onUpdate }) {
 
         {field.visibleWhenFieldId && (
           <>
-            <TextField select size="small" label="Condition" sx={{ minWidth: 200 }}
+            <TextField select size="small" label="Condition" sx={{ minWidth: { xs: '100%', sm: 200 } }}
               value={field.visibleWhenOperator || 'equals'}
               onChange={(e) => onUpdate(field.id, 'visibleWhenOperator', e.target.value)}
             >
@@ -150,7 +150,7 @@ function VisibilityEditor({ field, allFields, onUpdate }) {
             </TextField>
 
             {needsValue && (sourceOptions.length > 0 ? (
-              <TextField select size="small" label="Value" sx={{ minWidth: 140 }}
+              <TextField select size="small" label="Value" sx={{ minWidth: { xs: '100%', sm: 140 } }}
                 value={field.visibleWhenValue || ''}
                 onChange={(e) => onUpdate(field.id, 'visibleWhenValue', e.target.value)}
               >
@@ -159,7 +159,7 @@ function VisibilityEditor({ field, allFields, onUpdate }) {
                 ))}
               </TextField>
             ) : (
-              <TextField size="small" label="Value" sx={{ minWidth: 140 }}
+              <TextField size="small" label="Value" sx={{ minWidth: { xs: '100%', sm: 140 } }}
                 value={field.visibleWhenValue || ''}
                 onChange={(e) => onUpdate(field.id, 'visibleWhenValue', e.target.value)}
               />
@@ -182,7 +182,7 @@ function FieldCard({ field, index, onUpdate, onRemove, allFields }) {
       <Typography variant="h6" sx={{ color: '#94a3b8', fontWeight: 700, pt: 1 }}>
         {index + 1}.
       </Typography>
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' } }}>
           <TextField
             fullWidth label="Field Label" variant="outlined" size="small"
@@ -1032,11 +1032,12 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
       {/* GOOGLE FORMS STYLE TOOLBAR */}
       <Paper elevation={0} sx={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: { xs: 'wrap', sm: 'nowrap' },
         p: '8px 16px', mb: 0, borderBottom: '1px solid #e2e8f0', borderRadius: 0,
         position: 'sticky', top: '64px', zIndex: 1000, backgroundColor: '#ffffff',
         overflowX: 'auto', gap: 1
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, maxWidth: '100%' }}>
           <Typography variant="h6" sx={{ fontWeight: 800, color: '#6366f1', letterSpacing: '-0.5px' }}>
             SureSubmit
           </Typography>
@@ -1046,7 +1047,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.5 }, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.5 }, flexShrink: 0, flexWrap: { xs: 'wrap', sm: 'nowrap' }, maxWidth: '100%' }}>
           <Tooltip title="Preview Form">
             <IconButton onClick={() => setPreviewOpen(true)} disabled={fields.length === 0}>
               <Visibility sx={{ color: fields.length > 0 ? '#64748b' : '#cbd5e1' }} />
