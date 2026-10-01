@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, TextField, MenuItem, Paper, IconButton,
   LinearProgress, Chip, Tooltip, Divider, Alert, Dialog, DialogTitle,
@@ -365,6 +366,38 @@ function ShareDialog({ open, onClose, shareableLink, formTitle }) {
   );
 }
 
+function ThemeDialog({ open, onClose, accentColor, onColorChange }) {
+  const colors = ['#6366f1', '#0f172a', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
+        <Palette sx={{ color: '#6366f1' }} />
+        Theme
+      </DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" sx={{ fontWeight: 700, color: '#475569', mb: 2 }}>Accent Color</Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {colors.map((c) => (
+            <Box key={c} onClick={() => onColorChange(c)}
+              sx={{
+                width: 36, height: 36, borderRadius: '50%', cursor: 'pointer',
+                backgroundColor: c,
+                border: accentColor === c ? '3px solid #0f172a' : '3px solid transparent',
+                transition: 'transform 0.15s ease', '&:hover': { transform: 'scale(1.15)' }
+              }} />
+          ))}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={onClose} variant="contained" sx={{ textTransform: 'none', fontWeight: 600, backgroundColor: '#6366f1' }}>
+          Done
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 function SettingsDialog({ open, onClose, formTitle, formDescription, confirmationMessage, accentColor,
   onTitleChange, onDescriptionChange, onConfirmationChange, onColorChange }) {
   const colors = ['#6366f1', '#0f172a', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
@@ -505,6 +538,8 @@ function AccessControlDialog({ open, onClose }) {
 
 export default function FormBuilder() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const draftKey = user ? `sureform_draft_${user.userId}` : null;
   const [formTitle, setFormTitle] = useState('Untitled Form');
   const [fields, setFields] = useState([]);
   const [rules, setRules] = useState([]);
@@ -524,10 +559,15 @@ export default function FormBuilder() {
   const [confirmationMessage, setConfirmationMessage] = useState('Your response has been recorded.');
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const historyIndexRef = useRef(-1);
+  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
 
   const pushHistory = (newFields, newRules = rules, newTitle = formTitle) => {
     const snapshot = { fields: newFields, rules: newRules, formTitle: newTitle };
-    setHistory(h => [...h.slice(0, historyIndex + 1), snapshot]);
+    setHistory(h => {
+      const idx = Math.min(historyIndexRef.current, h.length - 1);
+      return [...h.slice(0, idx + 1), snapshot];
+    });
     setHistoryIndex(i => i + 1);
   };
 
@@ -552,6 +592,36 @@ export default function FormBuilder() {
   };
 
   const getLiveLink = () => publishedFormId ? `${window.location.origin}/form/${publishedFormId}` : '';
+
+  // Restore autosaved draft on mount
+  useEffect(() => {
+    if (!draftKey) return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (Array.isArray(d.fields)) setFields(d.fields);
+      if (Array.isArray(d.rules)) setRules(d.rules);
+      if (typeof d.formTitle === 'string') setFormTitle(d.formTitle);
+      if (typeof d.formDescription === 'string') setFormDescription(d.formDescription);
+      if (typeof d.confirmationMessage === 'string') setConfirmationMessage(d.confirmationMessage);
+      if (typeof d.accentColor === 'string') setAccentColor(d.accentColor);
+    } catch { /* ignore malformed draft */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  // Autosave draft on every change
+  useEffect(() => {
+    if (!draftKey) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          fields, rules, formTitle, formDescription, confirmationMessage, accentColor,
+        }));
+      } catch { /* quota or unavailable */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [draftKey, fields, rules, formTitle, formDescription, confirmationMessage, accentColor]);
 
   const callGroq = async (apiKey, messages) => {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1034,11 +1104,13 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexWrap: { xs: 'wrap', sm: 'nowrap' },
         p: '8px 16px', mb: 0, borderBottom: '1px solid #e2e8f0', borderRadius: 0,
-        position: 'sticky', top: '64px', zIndex: 1000, backgroundColor: '#ffffff',
+        position: 'sticky', top: 65, mt: '-16px', zIndex: 1000, backgroundColor: '#ffffff',
         overflowX: 'auto', gap: 1
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, maxWidth: '100%' }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: '#6366f1', letterSpacing: '-0.5px' }}>
+          <Typography variant="h6"
+            onClick={() => navigate('/')}
+            sx={{ fontWeight: 800, color: '#6366f1', letterSpacing: '-0.5px', cursor: 'pointer' }}>
             SureSubmit
           </Typography>
           <Divider orientation="vertical" flexItem sx={{ mx: { xs: 0, sm: 1 }, display: { xs: 'none', sm: 'block' } }} />
@@ -1147,6 +1219,10 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         onColorChange={setAccentColor}
       />
 
+      {/* THEME DIALOG */}
+      <ThemeDialog open={themeOpen} onClose={() => setThemeOpen(false)}
+        accentColor={accentColor} onColorChange={setAccentColor} />
+
       {/* PREVIEW DIALOG */}
       <PreviewDialog
         open={previewOpen}
@@ -1157,7 +1233,7 @@ CRITICAL: Use EXACT labels from the field list. Do NOT invent, capitalize differ
         accentColor={accentColor}
       />
 
-      <Box sx={{ maxWidth: 800, margin: '0 auto', px: { xs: 1, sm: 2 }, mt: 3 }}>
+      <Box sx={{ maxWidth: 800, margin: '0 auto', px: { xs: 1, sm: 2 }, mt: 3, pt: { xs: 8, sm: 0 } }}>
 
         {/* AI GENERATION CARD */}
         <Paper elevation={0} sx={{

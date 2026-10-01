@@ -140,7 +140,7 @@ function AppNavBar({ onMenuToggle }) {
   const navigate = useNavigate();
 
   return (
-    <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: '1px solid #e2e8f0' }}>
+    <AppBar position="sticky" top={0} color="inherit" elevation={0} sx={{ borderBottom: '1px solid #e2e8f0', zIndex: 1100 }}>
       <Toolbar sx={{ pl: onMenuToggle ? 1 : 2 }}>
         {onMenuToggle && (
           <Tooltip title="Toggle menu">
